@@ -30,9 +30,8 @@ class PostgresConnection implements sys.db.Connection {
 	var status     : Map<String, String>;
 	var process_id : Int;
 	var secret_key : Int;
-	var s     : sys.net.Socket;
+	var s          : sys.net.Socket;
 	var database   : String;
-	var bb : BytesBuffer;
 
 	public function new( params : {
 		host     : String,
@@ -50,7 +49,6 @@ class PostgresConnection implements sys.db.Connection {
 		database = params.database;
 		var h = new Host(params.host);
 		s.connect(h, params.port);
-		bb = new BytesBuffer();
 
 		// write the startup message
 		s.writeMessage(
@@ -164,9 +162,9 @@ class PostgresResultSet implements ResultSet {
 	public function hasNext() return (row_idx < data.length);
 	public function next() {
 		var obj = {};
+		var row = data[row_idx++];
 		for (idx in 0...field_descriptions.length){
 			var field_desc = field_descriptions[idx];
-			var row = data[row_idx++];
 			Reflect.setField( obj, 
 					field_desc.name, 
 					readType(field_desc.datatype_object_id, row[idx])
@@ -184,7 +182,7 @@ class PostgresResultSet implements ResultSet {
 			case DataType.oidBOOL   : output.readInt8() > 0;
 			case DataType.oidFLOAT4 : output.readFloat();
 			case DataType.oidFLOAT8 : output.readDouble();
-			default        : output.readString(bytes.length);
+			default                 : output.readString(bytes.length);
 		}
 		
 	}
