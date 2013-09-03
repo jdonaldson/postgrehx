@@ -14,6 +14,7 @@ class Messages {
 	    var w = new Writer();
 		var buffer = switch(f){
 			case StartupMessage(args): w.msgLength().addInt32(0x30000).addObj(args);
+			case PasswordMessage(s): w.addString('p').msgLength().addCString(s);
 			case Query(query): w.addString("Q").msgLength().addCString(query);
 		}
 		var writer_bytes = w.getBytes();
@@ -71,8 +72,15 @@ class Messages {
 			);
 			case "I" : EmptyQueryResponse;
 			case "E" : ErrorResponse({
-				field_type  : input.readInt8(),
-				field_value : input.readString(length)
+				field_type : input.readInt8(),
+				field_value : {
+					//When login fails, input.readString will not work and we also reach Eof before reading full message length - or so it seems
+					var buf = new StringBuf();
+					for (i in 0...length)
+						try buf.addChar(input.readByte())
+						catch (e:Dynamic) break;
+					buf.toString();
+				}
 			});
 			// case "V" : FunctionCallResponse({
 			// 	function_result_length : input.readInt32(),
@@ -200,6 +208,7 @@ typedef ConnectionArgs ={
 
 enum ClientMessageType{
 	StartupMessage(args: StartupArgs);
+	PasswordMessage(s: String);
 	// Bind;
 	// CancelRequest;
 	// Close;
