@@ -7,6 +7,7 @@ import haxe.io.BytesInput;
 import sys.net.Socket;
 import haxe.io.BytesBuffer;
 import haxe.io.Bytes;
+using haxe.crypto.Md5;
 using sys.db.pgsql.ByteTools;
 using sys.db.pgsql.Messages;
 import sys.db.pgsql.DataType;
@@ -61,17 +62,20 @@ class PostgresConnection implements sys.db.Connection {
 		);
 
 		// grab the next few optional status/data messages
-		while(true){
-			var msg = s.readMessage();
-			switch(msg){
-				case AuthenticationRequest(AuthenticationOk)  : null; //ok
+		while (true) {
+			switch s.readMessage() {
+				case AuthenticationRequest(AuthenticationOk): null; //ok
+				case AuthenticationRequest(AuthenticationCleartextPassword): 
+					s.writeMessage(PasswordMessage(params.pass));
+				case AuthenticationRequest(AuthenticationMD5Password(salt)): 
+					s.writeMessage(PasswordMessage('md5' + ((params.pass + params.user).encode() + salt).encode()));
 				case ParameterStatus(args): status[args.name] = args.value;
 				case BackendKeyData(args): {
 					process_id = args.process_id;
 					secret_key = args.secret_key;
 				}
 				case ReadyForQuery(status):  break;  // move on when ready
-				default: throw ('Unimplemented: $msg');
+				case ni: throw ('Unimplemented: $ni');
 			}
 		}
 
