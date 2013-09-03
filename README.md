@@ -5,8 +5,8 @@ protocol](http://www.postgresql.org/docs/9.2/static/protocol.html).
 
 This library is in an early alpha state.  Here's the current TODO:
 
-1) MD5 and basic encryption
-2) automatic decoding of types other than numbers, booleans, and strings.
+1. MD5 and basic encryption
+2. automatic decoding of types other than numbers, booleans, and strings.
 
 ## Usage
 ```haxe
