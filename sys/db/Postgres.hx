@@ -27,49 +27,47 @@ class Postgres {
 }
 
 class PostgresConnection implements sys.db.Connection {
-	var status     : Map<String, String>;
-	var process_id : Int;
-	var secret_key : Int;
-	var s          : Socket;
-	var database   : String;
+	var status         : Map<String, String>;
+	var process_id     : Int;
+	var secret_key     : Int;
+	var socket         : Socket;
 	var last_insert_id : Int;
 
 	public function new( params : {
+		database : String,
 		host     : String,
-		?port    : Int,
-		user     : String,
 		pass     : String,
+		?port    : Int,
 		?socket  : String,
-		database : String
+		user     : String,
 	}){
 		if (params.port == null) params.port = 5432;
 		status = new Map();
-		s = new Socket();
-		s.input.bigEndian = true;
-		s.output.bigEndian = true;
-		database = params.database;
+		socket = new Socket();
+		socket.input.bigEndian = true;
+		socket.output.bigEndian = true;
 		var h = new Host(params.host);
-		s.connect(h, params.port);
+		socket.connect(h, params.port);
 
 		// write the startup message
-		s.writeMessage(
+		socket.writeMessage(
 				StartupMessage({
-					user: params.user,
-					database: params.database,
+					user     : params.user,
+					database : params.database,
 					// client_encoding: "'utf-8'" // typical
 				})
 		);
 
 		// grab the next few optional status/data messages
 		while (true) {
-			switch s.readMessage() {
+			switch socket.readMessage() {
 				case AuthenticationRequest(request_type) : {
 					switch(request_type){
 						case AuthenticationOk : null; //ok
 						case AuthenticationCleartextPassword :
-							s.writeMessage(PasswordMessage(params.pass));
+							socket.writeMessage(PasswordMessage(params.pass));
 						case AuthenticationMD5Password(salt) :
-							s.writeMessage(PasswordMessage(md5Auth({
+							socket.writeMessage(PasswordMessage(md5Auth({
 								pass : params.pass,
 								user : params.user,
 								salt : salt
@@ -92,8 +90,8 @@ class PostgresConnection implements sys.db.Connection {
 
 	public function request( query : String ): ResultSet {
 		// write the query
-		s.writeMessage( Query(query) );
-		var msg = s.readMessage();
+		socket.writeMessage( Query(query) );
+		var msg = socket.readMessage();
 		var field_descriptions = new Array<FieldDescription>();
 		// grab the first response, which is usually a row description
 		switch(msg){
@@ -107,7 +105,7 @@ class PostgresConnection implements sys.db.Connection {
 		// TODO move this down to the result set next() function?
 		while(true){
 			// the second response contains the actual data
-			var msg = s.readMessage();
+			var msg = socket.readMessage();
 			switch(msg){
 				case DataRow(args)         : data.push(args);
 				case CommandComplete(tag)  : handleTag(tag);
@@ -118,30 +116,41 @@ class PostgresConnection implements sys.db.Connection {
 		var row_idx = 0;
 		return new PostgresResultSet(data,field_descriptions);
 	}
+
 	public function close(): Void {
-		s.close();
-	}
-	public function escape( s : String ): String {
-		return null;
-	}
-	public function quote( s : String ): String {
-		return null;
-	}
-	public function addValue( s : StringBuf, v : Dynamic ) : Void {
-	}
-	public function lastInsertId() : Int {
-		return 0;
-	}
-	public function dbName() : String {
-		return this.database;
-	}
-	public function startTransaction() : Void {
-	}
-	public function commit() : Void {
-	}
-	public function rollback() : Void {
+		socket.close();
 	}
 
+	public function quote( s : String ): String {
+		return s.split("'").join("''");
+	}
+	public function escape( s : String ): String {
+		var s = s.split("\n").join("\\n");
+		var s = s.split("\r").join("\\r");
+		var s = s.split("\t").join("\\t");
+		var s = s.split("\\").join("\\\\");
+		var s = s.split("'").join("''");
+		var s = s.split(String.fromCharCode(12)).join("\\f");
+		return 'E\'$s\'';
+	}
+	public function addValue( s : StringBuf, v : Dynamic ) : Void {
+		if (v == null || Std.is(v,Int)){
+			s.add(v);
+		} else if (Std.is(v,Bool)){
+			s.add(if (cast v) 1 else 0);
+		} else {
+			s.add(quote(Std.string(v)));
+		}
+	}
+	public function lastInsertId() : Int {
+		return this.last_insert_id;
+	}
+	public function dbName() : String {
+		return "PostgreSQL";
+	}
+	public function startTransaction() request("BEGIN;");
+	public function commit()           request("COMMIT;");
+	public function rollback()         request("ROLLBACK;");
 	/**
 	  Utility function to create a postgres/md5 authentication string
 	 **/
