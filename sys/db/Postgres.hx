@@ -32,6 +32,7 @@ class PostgresConnection implements sys.db.Connection {
 	var secret_key : Int;
 	var s          : Socket;
 	var database   : String;
+	var last_insert_id : Int;
 
 	public function new( params : {
 		host     : String,
@@ -109,7 +110,7 @@ class PostgresConnection implements sys.db.Connection {
 			var msg = s.readMessage();
 			switch(msg){
 				case DataRow(args)         : data.push(args);
-				case CommandComplete(tag)  : null;
+				case CommandComplete(tag)  : handleTag(tag);
 				case ReadyForQuery(status) : break;
 				default: trace('Unimplemented: $msg');
 			}
@@ -144,10 +145,24 @@ class PostgresConnection implements sys.db.Connection {
 	/**
 	  Utility function to create a postgres/md5 authentication string
 	 **/
-	static function md5Auth(o : {pass : String, user : String, salt : String}){
+	inline static function md5Auth(o : {pass : String, user : String, salt : String}){
 		return "md5" + ((o.pass + o.user).encode() + o.salt).encode();
 	}
 
+	/**
+	  Utility function to handle postgres tags (and capture last insert id's)
+	 **/
+	inline public function handleTag(tag:String){
+		var values = tag.split(' ');
+		var command = values.pop();
+		switch(command){
+			case "INSERT" : {
+				var oid  = Std.parseInt(values.pop());
+				var rows = Std.parseInt(values.pop());
+				if (rows == 1) this.last_insert_id = oid;
+			}
+		}
+	}
 }
 
 class PostgresResultSet implements ResultSet {
