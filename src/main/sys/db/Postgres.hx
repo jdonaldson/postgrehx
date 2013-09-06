@@ -1,19 +1,19 @@
 package sys.db;
 
-import sys.net.Host;
-import haxe.io.Input;
-import haxe.io.BytesOutput;
-import haxe.io.BytesInput;
-import sys.net.Socket;
-import haxe.io.BytesBuffer;
 import haxe.io.Bytes;
+import haxe.io.BytesBuffer;
+import haxe.io.BytesInput;
+import haxe.io.BytesOutput;
+import haxe.io.Input;
+import sys.db.pgsql.DataType;
+import sys.net.Host;
+import sys.net.Socket;
+
 using haxe.crypto.Md5;
 using sys.db.pgsql.ByteTools;
 using sys.db.pgsql.Messages;
-import sys.db.pgsql.DataType;
 
 class Postgres {
-
 	public static function connect( params : {
 		host     : String,
 		?port    : Int,
@@ -110,16 +110,14 @@ class PostgresConnection implements sys.db.Connection {
 				case DataRow(args)         : data.push(args);
 				case CommandComplete(tag)  : handleTag(tag);
 				case ReadyForQuery(status) : break;
-				default: trace('Unimplemented: $msg');
+				default : trace('Unimplemented: $msg');
 			}
 		}
 		var row_idx = 0;
 		return new PostgresResultSet(data,field_descriptions);
 	}
 
-	public function close(): Void {
-		socket.close();
-	}
+	public function close() socket.close();
 
 	public function quote( s : String ): String {
 		return s.split("'").join("''");
@@ -142,15 +140,12 @@ class PostgresConnection implements sys.db.Connection {
 			s.add(quote(Std.string(v)));
 		}
 	}
-	public function lastInsertId() : Int {
-		return this.last_insert_id;
-	}
-	public function dbName() : String {
-		return "PostgreSQL";
-	}
+	public function lastInsertId() return this.last_insert_id;
+	public function dbName() return "PostgreSQL"; 
 	public function startTransaction() request("BEGIN;");
-	public function commit()           request("COMMIT;");
-	public function rollback()         request("ROLLBACK;");
+	public function commit() request("COMMIT;"); 
+	public function rollback() request("ROLLBACK;");
+
 	/**
 	  Utility function to create a postgres/md5 authentication string
 	 **/
@@ -210,7 +205,7 @@ class PostgresResultSet implements ResultSet {
 	public function next() {
 		var obj = {};
 		var row = data[row_idx++];
-		for (idx in 0...field_descriptions.length){
+		for (idx in 0...field_descriptions.length) {
 			var field_desc = field_descriptions[idx];
 			Reflect.setField( obj,
 					field_desc.name,
@@ -227,17 +222,19 @@ class PostgresResultSet implements ResultSet {
 	 **/
 	static function parseTimeStampTz(stamp:String){
 		// split off time zone, can't parse those directly
-		var tz = stamp.substring(stamp.length-3, stamp.length);
+		var tz = stamp.substring(stamp.length - 3, stamp.length);
 		var offset = Std.parseInt(tz);
 
 		// split off milliseconds, can't encode those
 		var date = Date.fromString(stamp.split('.')[0]);
 
 		// leap year adjustment
-		var days =  (date.getFullYear() % 4 == 0) ? 366 : 365;
+		var days = (date.getFullYear() % 4 == 0) ? 366 : 365;
+
+		return date;
 
 		//  modify the original stamp by the offset, giving utc
-		return DateTools.delta(date, offset/(24*days));
+		// return DateTools.delta(date, offset / (24 * days));
 	}
 
 	/**
