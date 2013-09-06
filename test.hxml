@@ -1,4 +1,0 @@
--cp ./src/test/
--cp ./src/main/
--main TestAll
--x test

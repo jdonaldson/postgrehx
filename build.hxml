@@ -1,3 +1,4 @@
--main Test
--x out
-
+-cp ./src/test/
+-cp ./src/main/
+-main TestAll
+-x test
