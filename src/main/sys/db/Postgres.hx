@@ -95,9 +95,10 @@ class PostgresConnection implements sys.db.Connection {
 		var field_descriptions = new Array<FieldDescription>();
 		// grab the first response, which is usually a row description
 		switch(msg){
-			case ErrorResponse(args)  : throw('Error: $msg');
+			case ErrorResponse(args)  : throw('Error! $args');
 			case EmptyQueryResponse   : return null;
 			case RowDescription(args) : field_descriptions = args;
+			case CommandComplete(tag) : handleTag(tag);
 			default : trace('Unimplemented: $msg');
 		}
 		var data = new Array<Array<Bytes>>();
@@ -141,9 +142,9 @@ class PostgresConnection implements sys.db.Connection {
 		}
 	}
 	public function lastInsertId() return this.last_insert_id;
-	public function dbName() return "PostgreSQL"; 
+	public function dbName() return "PostgreSQL";
 	public function startTransaction() request("BEGIN;");
-	public function commit() request("COMMIT;"); 
+	public function commit() request("COMMIT;");
 	public function rollback() request("ROLLBACK;");
 
 	/**
@@ -156,7 +157,7 @@ class PostgresConnection implements sys.db.Connection {
 	/**
 	  Utility function to handle postgres tags (and capture last insert id's)
 	 **/
-	inline public function handleTag(tag:String){
+	public function handleTag(tag:String){
 		var values = tag.split(' ');
 		var command = values.pop();
 		switch(command){
@@ -165,6 +166,11 @@ class PostgresConnection implements sys.db.Connection {
 				var rows = Std.parseInt(values.pop());
 				if (rows == 1) this.last_insert_id = oid;
 			}
+			case "CREATE TABLE" : {
+				trace(values);
+			}
+
+
 		}
 	}
 }

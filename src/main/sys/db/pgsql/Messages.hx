@@ -9,7 +9,6 @@ typedef Int16 = Int;
 typedef Int32 = Int;
 
 class Messages {
-	static inline var OFFSET = 4;
 	public static function writeMessage(s: Socket, f: ClientMessageType): Void {
 	    var w = new Writer();
 		var buffer = switch(f){
@@ -25,8 +24,7 @@ class Messages {
 	public static function readMessage(s: Socket) : ServerMessage {
 		var input = s.input;
 		var code = input.readString(1);
-		var length = input.readInt32();
-		length -= OFFSET;
+		var length = input.readInt32() - 4; // length always includes an extra INT32
 		return switch(code){
 			case "R" : {
 				var code = input.readInt32();
@@ -44,7 +42,7 @@ class Messages {
 				AuthenticationRequest(type);
 			}
 			case "K" : BackendKeyData({
-				process_id: input.readInt32(), 
+				process_id: input.readInt32(),
 				secret_key: input.readInt32()
 			});
 			// case "B" : BindComplete;
@@ -68,19 +66,15 @@ class Messages {
 			// 	formatCodes    : input.readInt16()
 			// });
 			case "D" : DataRow(
-				[for (i in 0...input.readInt16()) input.read(input.readInt32())] 
+				[for (i in 0...input.readInt16()) input.read(input.readInt32())]
 			);
 			case "I" : EmptyQueryResponse;
 			case "E" : ErrorResponse({
-				field_type : input.readInt8(),
-				field_value : {
-					//When login fails, input.readString will not work and we also reach Eof before reading full message length - or so it seems
-					var buf = new StringBuf();
-					for (i in 0...length)
-						try buf.addChar(input.readByte())
-						catch (e:Dynamic) break;
-					buf.toString();
-				}
+				var byte_code:Int;
+				var error = new Map<String,String>();
+				while ({ byte_code = input.readByte(); byte_code != 0;})
+					error[String.fromCharCode(byte_code)] = input.readUntil(0);
+				error;
 			});
 			// case "V" : FunctionCallResponse({
 			// 	function_result_length : input.readInt32(),
@@ -91,8 +85,11 @@ class Messages {
 			// case "A" : NotificationResponse;
 			// case "t" : ParameterDescription;
 			case "S" : ParameterStatus({
-				var name = input.readUntil(0); // delimited by 0, adjust length below
-				{ name  : name , value : input.readString(length - name.length - 1) }
+				var name = input.readUntil(0); // delimited by null, adjust length below
+				{
+					name  : name,
+					value : input.readString(length - name.length - 1)
+			  	}
 			});
 
 			// case "1" : ParseComplete;
@@ -111,7 +108,7 @@ class Messages {
 							}
 					]
 			);
-			case  _  : Unknown;
+			case  _  : Unknown(code);
 		}
 	}
 
@@ -146,8 +143,8 @@ enum AuthenticationRequestType{
 }
 
 typedef CopyResponseArguments = {
-	text_or_binary:Int, 
-	num_columns:Int, 
+	text_or_binary:Int,
+	num_columns:Int,
 	formatCodes:Int
 }
 
@@ -164,7 +161,7 @@ enum ServerMessage {
 	CopyBothResponse(args: CopyResponseArguments);
 	DataRow(fields : Array<Bytes>);
 	EmptyQueryResponse;
-	ErrorResponse(args:{field_type:Int, field_value:String});
+	ErrorResponse(error_codes: Map<String,String>);
 	FunctionCallResponse(args:{function_result_length:Int, function_result_value:String});
 	NoData;
 	// NoticeResponse;
@@ -175,7 +172,7 @@ enum ServerMessage {
 	// PortalSuspended;
 	ReadyForQuery(status:String);
 	RowDescription( fields : Array<FieldDescription>);
-	Unknown;
+	Unknown(code:String);
 }
 typedef FieldValue = {
 	length : Int32,

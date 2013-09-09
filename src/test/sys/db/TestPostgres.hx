@@ -4,13 +4,15 @@ class TestPostgres extends haxe.unit.TestCase {
 	var con : Connection;
 	override public function setup(){
 		con = Postgres.connect({
-			host : "localhost",
-			user : "jdonaldson",
-			pass : "jdonaldson",
+			host     : "localhost",
+			user     : "jdonaldson",
+			pass     : "jdonaldson",
 			database : "scratch"
 		});
 	}
 	override public function tearDown(){
+		// con.request("drop table Persons");
+		// con.commit();
 		con.close();
 	}
 	public function testDbSanity() {
@@ -24,6 +26,7 @@ class TestPostgres extends haxe.unit.TestCase {
 			ORDER BY table_schema,table_name;
 			");
 		assertTrue(res.length > 0);
+
 		var obj = res.next();
 		assertEquals(Reflect.fields(obj).length, 2);
 		assertTrue(obj.table_schema != null);
@@ -33,8 +36,21 @@ class TestPostgres extends haxe.unit.TestCase {
 		var time = Date.now().getTime();
 		var res = con.request('SELECT NOW() AS "theTime"');
 		assertEquals(res.length, 1);
-		var res_date : { theTime:Date} = untyped res.next();
+		var res_date : { theTime : Date} = untyped res.next();
 		var res_time = res_date.theTime.getTime();
 		assertEquals(time, res_time);
 	}
+	// public function testCreateTable(){
+	// 	var res = con.request('
+	// 			CREATE TABLE Persons
+	// 			(
+	// 			 PersonID int,
+	// 			 LastName varchar(255),
+	// 			 FirstName varchar(255),
+	// 			 Address varchar(255),
+	// 			 City varchar(255)
+	// 			)
+	// 			');
+	// 	con.commit();
+	// }
 }
