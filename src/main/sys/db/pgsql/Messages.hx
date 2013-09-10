@@ -4,6 +4,7 @@ import sys.net.Socket;
 import haxe.io.Input;
 import haxe.io.Output;
 import haxe.io.Bytes;
+import sys.db.pgsql.Error;
 typedef Int8 = Int;
 typedef Int16 = Int;
 typedef Int32 = Int;
@@ -69,19 +70,13 @@ class Messages {
 				[for (i in 0...input.readInt16()) input.read(input.readInt32())]
 			);
 			case "I" : EmptyQueryResponse;
-			case "E" : ErrorResponse({
-				var byte_code:Int;
-				var error = new Map<String,String>();
-				while ({ byte_code = input.readByte(); byte_code != 0;})
-					error[String.fromCharCode(byte_code)] = input.readUntil(0);
-				error;
-			});
+			case "E" : ErrorResponse(decodeNotice(input));
 			// case "V" : FunctionCallResponse({
 			// 	function_result_length : input.readInt32(),
 			// 	function_result_value  : input.readString(length)
 			// });
 			// case "n" : NoData;
-			// case "N" : NoticeResponse(decodeNoticeResponseFields(d));
+			case "N" : NoticeResponse(decodeNotice(input));
 			// case "A" : NotificationResponse;
 			// case "t" : ParameterDescription;
 			case "S" : ParameterStatus({
@@ -109,6 +104,34 @@ class Messages {
 					]
 			);
 			case  _  : Unknown(code);
+		}
+	}
+	public static function decodeNotice(input : Input): Notice {
+		var byte_code:Int;
+		// var error = new Map<String,String>();
+		var error:Dynamic = {};
+		while ({ byte_code = input.readByte(); byte_code != 0;})
+			Reflect.setField(
+					error,
+					noticeFieldToString(String.fromCharCode(byte_code)),
+					input.readUntil(0)
+					);
+		return error;
+	}
+	inline public static function noticeFieldToString(code:String){
+		return switch(code){
+			case "S": return "severity";
+			case "C": return "sqlstate";
+			case "M": return "message";
+			case "D": return "detail";
+			case "H": return "hint";
+			case "P": return "position";
+			case "q": return "query";
+			case "W": return "where";
+			case "F": return "file";
+			case "L": return "line";
+			case "R": return "routine";
+			default : return "unknown";
 		}
 	}
 
@@ -161,10 +184,10 @@ enum ServerMessage {
 	CopyBothResponse(args: CopyResponseArguments);
 	DataRow(fields : Array<Bytes>);
 	EmptyQueryResponse;
-	ErrorResponse(error_codes: Map<String,String>);
+	ErrorResponse(notice: Notice);
 	FunctionCallResponse(args:{function_result_length:Int, function_result_value:String});
 	NoData;
-	// NoticeResponse;
+	NoticeResponse(notice: Notice);
 	// NotificationResponse;
 	// ParameterDescription;
 	ParameterStatus(args: {name: String, value: String});

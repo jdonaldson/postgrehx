@@ -111,7 +111,10 @@ class PostgresConnection implements sys.db.Connection {
 				case DataRow(args)         : data.push(args);
 				case CommandComplete(tag)  : handleTag(tag);
 				case ReadyForQuery(status) : break;
-				default : trace('Unimplemented: $msg');
+				default                    : {
+					trace('Unimplemented : $msg');
+					break;
+				}
 			}
 		}
 		var row_idx = 0;
