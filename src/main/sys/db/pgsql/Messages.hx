@@ -107,31 +107,31 @@ class Messages {
 		}
 	}
 	public static function decodeNotice(input : Input): Notice {
-		var byte_code:Int;
-		// var error = new Map<String,String>();
-		var error:Dynamic = {};
+		var byte_code : Int;
+		var error : Dynamic = {};
 		while ({ byte_code = input.readByte(); byte_code != 0;})
 			Reflect.setField(
 					error,
 					noticeFieldToString(String.fromCharCode(byte_code)),
-					input.readUntil(0)
-					);
+					input.readUntil(0));
+
 		return error;
 	}
+
 	inline public static function noticeFieldToString(code:String){
 		return switch(code){
-			case "S": return "severity";
-			case "C": return "sqlstate";
-			case "M": return "message";
-			case "D": return "detail";
-			case "H": return "hint";
-			case "P": return "position";
-			case "q": return "query";
-			case "W": return "where";
-			case "F": return "file";
-			case "L": return "line";
-			case "R": return "routine";
-			default : return "unknown";
+			case "S" : return "severity";
+			case "C" : return "sqlstate";
+			case "M" : return "message";
+			case "D" : return "detail";
+			case "H" : return "hint";
+			case "P" : return "position";
+			case "q" : return "query";
+			case "W" : return "where";
+			case "F" : return "file";
+			case "L" : return "line";
+			case "R" : return "routine";
+			default  : return 'unknown_$code';
 		}
 	}
 
@@ -197,10 +197,6 @@ enum ServerMessage {
 	RowDescription( fields : Array<FieldDescription>);
 	Unknown(code:String);
 }
-typedef FieldValue = {
-	length : Int32,
-	value : Bytes
-}
 
 typedef FieldDescription = {
 	name               : String,
@@ -218,6 +214,7 @@ typedef StartupArgs = {
 	?database        : String,
 	?client_encoding : String,
 }
+
 typedef ConnectionArgs ={
 	> StartupArgs,
 	host : String,
@@ -246,3 +243,4 @@ enum ClientMessageType{
 	// Sync;
 	// Terminate;
 }
+
