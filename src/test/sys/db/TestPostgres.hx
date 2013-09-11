@@ -1,7 +1,12 @@
 package sys.db;
 import sys.db.Postgres;
+
 class TestPostgres extends haxe.unit.TestCase {
 	var con : Connection;
+
+	/**
+	  Set up database and table
+	 **/
 	override public function setup(){
 		con = Postgres.connect({
 			host     : "localhost",
@@ -20,19 +25,26 @@ class TestPostgres extends haxe.unit.TestCase {
 				 City varchar(255)
 				)
 				');
-
 	}
 
+	/**
+	  Drop table on tear down
+	 **/
 	override public function tearDown(){
 		con.request("drop table Persons");
 		con.close();
 	}
 
+	/**
+	  Am I even who I say that I am?
+	 **/
 	public function testDbSanity() {
-		var error = false;
 		assertEquals(con.dbName(), "PostgreSQL");	
 	}
 
+	/**
+	  Basic test to ensure that a simple query works
+	 **/
 	public function testBasicQuery(){
 
 		var res = con.request("
@@ -48,6 +60,9 @@ class TestPostgres extends haxe.unit.TestCase {
 		assertTrue(obj.table_name != null);
 	}
 
+	/**
+		Test to ensure that date parsing works 
+	 **/
 	public function testTimeParse(){
 		var time = Date.now().getTime();
 		var res = con.request('SELECT NOW() AS "theTime"');
