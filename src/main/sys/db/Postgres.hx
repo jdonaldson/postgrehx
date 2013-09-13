@@ -5,6 +5,7 @@ import haxe.io.BytesBuffer;
 import haxe.io.BytesInput;
 import haxe.io.BytesOutput;
 import haxe.io.Input;
+
 import sys.db.pgsql.DataType;
 import sys.net.Host;
 import sys.net.Socket;
@@ -54,7 +55,7 @@ class PostgresConnection implements sys.db.Connection {
 				StartupMessage({
 					user     : params.user,
 					database : params.database,
-					// client_encoding: "'utf-8'" // typical
+					// client_encoding: "'utf-8'" // default
 				})
 		);
 
