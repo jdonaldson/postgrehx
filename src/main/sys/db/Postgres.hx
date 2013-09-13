@@ -51,7 +51,7 @@ class PostgresConnection implements sys.db.Connection {
 		socket.connect(h, params.port);
 
 		// write the startup message
-		socket.writeMessage(
+		writeMessage(
 				StartupMessage({
 					user     : params.user,
 					database : params.database,
@@ -61,14 +61,14 @@ class PostgresConnection implements sys.db.Connection {
 
 		// grab the next few optional status/data messages
 		while (true) {
-			switch socket.readMessage() {
+			switch readMessage() {
 				case AuthenticationRequest(request_type) : {
 					switch(request_type){
 						case AuthenticationOk : null; //ok
 						case AuthenticationCleartextPassword :
-							socket.writeMessage(PasswordMessage(params.pass));
+							writeMessage(PasswordMessage(params.pass));
 						case AuthenticationMD5Password(salt) :
-							socket.writeMessage(PasswordMessage(md5Auth({
+							writeMessage(PasswordMessage(md5Auth({
 								pass : params.pass,
 								user : params.user,
 								salt : salt
@@ -91,15 +91,14 @@ class PostgresConnection implements sys.db.Connection {
 
 	public function request( query : String ): ResultSet {
 		// write the query
-		socket.writeMessage( Query(query) );
-		var msg = socket.readMessage();
+		writeMessage( Query(query) );
+		var msg = readMessage();
 		var field_descriptions = new Array<FieldDescription>();
 		// grab the first response, which is usually a row description
 		switch(msg){
-			case ErrorResponse(notice) : handleError(notice);
+			case CommandComplete(tag)  : handleTag(tag);
 			case EmptyQueryResponse    : return new PostgresResultSet([],[]);
 			case RowDescription(args)  : field_descriptions = args;
-			case CommandComplete(tag)  : handleTag(tag);
 			default                    : trace('Unimplemented: $msg');
 		}
 		var data = new Array<Array<Bytes>>();
@@ -107,12 +106,11 @@ class PostgresConnection implements sys.db.Connection {
 		// TODO move this down to the result set next() function?
 		while(true){
 			// the second response contains the actual data
-			var msg = socket.readMessage();
+			var msg = readMessage();
 			switch(msg){
-				case DataRow(args)         : data.push(args);
 				case CommandComplete(tag)  : handleTag(tag);
+				case DataRow(args)         : data.push(args);
 				case ReadyForQuery(status) : break;
-				case ErrorResponse(notice) : handleError(notice);
 				default                    : {
 					trace('Unimplemented : $msg');
 				}
@@ -123,8 +121,8 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 	public function handleError(notice){
-		while(true){
-			var msg = socket.readMessage();
+		var msg : ServerMessage;
+		while({msg = readMessage(); true;}){
 			switch(msg){
 				case ReadyForQuery(status) : break;
 				case ni : throw('unexpected: $ni');
@@ -137,7 +135,7 @@ class PostgresConnection implements sys.db.Connection {
 	public function close() socket.close();
 
 /**
-	Use postgres escape quote: E'escaped string' 
+	Use postgres escape quote: E'escaped string'
  **/
 	public function quote( s : String ): String {
 		var repl_quote = s.split("'").join("''");
@@ -181,9 +179,34 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 	/**
+	  Utility function that wraps the socket writeMessage function.  Mainly
+	  provided for symmetry.
+	 **/
+	function writeMessage( msg : ClientMessageType){
+		socket.writeMessage(msg);
+	}
+
+	/**
+	  Utility function that wraps the normal socket.readMessage function.
+	  This one will filter out and save ParameterStatus messages, which
+	  can occur at any time during a Postgres session.
+	 */
+	function readMessage() : ServerMessage {
+		var msg : ServerMessage;
+		while ({msg = socket.readMessage(); true;}){
+			switch(msg){
+				case ParameterStatus(args) : status[args.name] = args.value;
+				case ErrorResponse(notice) : handleError(notice);
+				default : break;
+			}
+		}
+		return msg;
+	}
+
+	/**
 	  Utility function to handle postgres tags (and capture last insert id's)
 	 **/
-	public function handleTag(tag:String){
+	function handleTag(tag:String){
 		var values = tag.split(' ');
 		var command = values.pop();
 		switch(command){
