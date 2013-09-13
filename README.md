@@ -37,3 +37,9 @@ class Test {
 	}
 }
 ```
+
+## Running Tests
+
+If you want to run the tests, execute the tools/create_db.sh bash script that
+contains the database, pass, and test user for the tests.  To get rid of it,
+run the tools/destroy_db.sh script.
