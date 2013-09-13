@@ -136,9 +136,18 @@ class PostgresConnection implements sys.db.Connection {
 
 	public function close() socket.close();
 
+/**
+	Use postgres escape quote: E'escaped string' 
+ **/
 	public function quote( s : String ): String {
-		return s.split("'").join("''");
+		var repl_quote = s.split("'").join("''");
+		return 'E\'$repl_quote\'';
 	}
+
+	/**
+	  Escape a string for a Postgres query.  Note that quote is
+	  a safer option.
+	 **/
 	public function escape( s : String ): String {
 		var s = s.split("\n").join("\\n");
 		var s = s.split("\r").join("\\r");
@@ -146,8 +155,9 @@ class PostgresConnection implements sys.db.Connection {
 		var s = s.split("\\").join("\\\\");
 		var s = s.split("'").join("''");
 		var s = s.split(String.fromCharCode(12)).join("\\f");
-		return 'E\'$s\'';
+		return s;
 	}
+
 	public function addValue( s : StringBuf, v : Dynamic ) : Void {
 		if (v == null || Std.is(v,Int)){
 			s.add(v);
