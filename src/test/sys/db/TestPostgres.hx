@@ -1,18 +1,25 @@
 package sys.db;
 import sys.db.Postgres;
+import sys.db.pgsql.Error;
 
 class TestPostgres extends haxe.unit.TestCase {
-	var con : Connection;
+	static var user = "test_haxe_pgsql_user";
+	static var pass = "test_haxe_pgsql_pass";
+	static var db   = "test_haxe_pgsql";
+
+	var con : sys.db.Connection;
 
 	/**
-	  Set up database and table
+	  Set up database and table, runs for each test. 
+	  //TODO : put it in __init?
 	 **/
 	override public function setup(){
+
 		con = Postgres.connect({
 			host     : "localhost",
-			user     : "jdonaldson",
-			pass     : "jdonaldson",
-			database : "scratch"
+			user     : user,
+			database : db,
+			pass     : pass
 		});
 
 		con.request('
@@ -36,7 +43,7 @@ class TestPostgres extends haxe.unit.TestCase {
 	}
 
 	/**
-	  Am I even who I say that I am?
+	  Am I even who I say I am?
 	 **/
 	public function testDbSanity() {
 		assertEquals(con.dbName(), "PostgreSQL");	

@@ -108,14 +108,14 @@ class Messages {
 	}
 	public static function decodeNotice(input : Input): Notice {
 		var byte_code : Int;
-		var error : Dynamic = {};
+		var notice : Dynamic = {};
 		while ({ byte_code = input.readByte(); byte_code != 0;})
 			Reflect.setField(
-					error,
+					notice,
 					noticeFieldToString(String.fromCharCode(byte_code)),
 					input.readUntil(0));
 
-		return error;
+		return new Notice(notice);
 	}
 
 	inline public static function noticeFieldToString(code:String){

@@ -96,11 +96,11 @@ class PostgresConnection implements sys.db.Connection {
 		var field_descriptions = new Array<FieldDescription>();
 		// grab the first response, which is usually a row description
 		switch(msg){
-			case ErrorResponse(args)  : throw('Error! $args');
-			case EmptyQueryResponse   : return null;
-			case RowDescription(args) : field_descriptions = args;
-			case CommandComplete(tag) : handleTag(tag);
-			default : trace('Unimplemented: $msg');
+			case ErrorResponse(notice) : handleError(notice);
+			case EmptyQueryResponse    : return new PostgresResultSet([],[]);
+			case RowDescription(args)  : field_descriptions = args;
+			case CommandComplete(tag)  : handleTag(tag);
+			default                    : trace('Unimplemented: $msg');
 		}
 		var data = new Array<Array<Bytes>>();
 
@@ -112,14 +112,26 @@ class PostgresConnection implements sys.db.Connection {
 				case DataRow(args)         : data.push(args);
 				case CommandComplete(tag)  : handleTag(tag);
 				case ReadyForQuery(status) : break;
+				case ErrorResponse(notice) : handleError(notice);
 				default                    : {
 					trace('Unimplemented : $msg');
-					break;
 				}
 			}
 		}
 		var row_idx = 0;
 		return new PostgresResultSet(data,field_descriptions);
+	}
+
+	public function handleError(notice){
+		while(true){
+			var msg = socket.readMessage();
+			switch(msg){
+				case ReadyForQuery(status) : break;
+				case ni : throw('unexpected: $ni');
+			}
+		}
+		throw(notice);
+
 	}
 
 	public function close() socket.close();
@@ -183,8 +195,8 @@ class PostgresResultSet implements ResultSet {
 	var data : Array<Array<Bytes>>;
 	var field_descriptions: Array<FieldDescription>;
 	var row_idx = 0;
-	public var length(get, null): Int;
-	public var nfields(get, null): Int;
+	public var length(get, null)  : Int;
+	public var nfields(get, null) : Int;
 	function get_length() return data.length;
 	function get_nfields() return field_descriptions.length;
 	public function new(data, field_descriptions){
@@ -195,14 +207,14 @@ class PostgresResultSet implements ResultSet {
 		return [for (f in field_descriptions) f.name];
 	}
 	public function getFloatResult(col_idx: Int){
-		var bytes = data[row_idx][col_idx];
-		var bytes_input =  new BytesInput(bytes, 0, bytes.length);
+		var bytes       = data[row_idx][col_idx];
+		var bytes_input = new BytesInput(bytes, 0, bytes.length);
 		return bytes_input.readFloat();
 	}
 
 	public function	getIntResult(col_idx: Int){
-		var bytes = data[row_idx][col_idx];
-		var bytes_input =  new BytesInput(bytes, 0, bytes.length);
+		var bytes       = data[row_idx][col_idx];
+		var bytes_input = new BytesInput(bytes, 0, bytes.length);
 		return bytes_input.readInt32();
 	}
 
@@ -239,7 +251,7 @@ class PostgresResultSet implements ResultSet {
 		var date = Date.fromString(stamp.split('.')[0]);
 
 		// leap year adjustment
-		var days = (date.getFullYear() % 4 == 0) ? 366 : 365;
+		// var days = (date.getFullYear() % 4 == 0) ? 366 : 365;
 
 		return date;
 

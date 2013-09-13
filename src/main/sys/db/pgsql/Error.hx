@@ -1,5 +1,5 @@
 package sys.db.pgsql;
-typedef Notice = {
+typedef NoticeArguments = {
 	severity  : String,
 	sqlstate  : String,
 	message   : String,
@@ -13,7 +13,33 @@ typedef Notice = {
 	?routine  : String
 }
 
-class Error {
+class Notice {
+	public var severity : String;
+	public var sqlstate : String;
+	public var message  : String;
+	public var detail   : String; // possibly null
+	public var hint     : String; // possibly null
+	public var position : String; // possibly null
+	public var query    : String; // possibly null
+	public var where    : String; // possibly null
+	public var file     : String; // possibly null
+	public var line     : String; // possibly null
+	public var routine  : String; // possibly null
+
+	public function new(notice:NoticeArguments){
+		this.severity =  notice.severity;
+		this.sqlstate =  notice.sqlstate;
+		this.message  =  notice.message;
+		this.detail   =  notice.detail;
+		this.hint     =  notice.hint;
+		this.position =  notice.position;
+		this.query    =  notice.query;
+		this.where    =  notice.where;
+		this.file     =  notice.file;
+		this.line     =  notice.line;
+		this.routine  =  notice.routine;
+	}
+
 	public static function translateSqlState(code : String){
 		return switch(code){
 			//Class 00 — Successful Completion
