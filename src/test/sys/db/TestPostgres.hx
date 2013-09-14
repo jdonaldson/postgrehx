@@ -1,53 +1,41 @@
 package sys.db;
 import sys.db.Postgres;
 import sys.db.pgsql.Error;
+import haxe.unit.TestCase;
 
-class TestPostgres extends haxe.unit.TestCase {
-	static var user = "test_haxe_pgsql_user";
-	static var pass = "test_haxe_pgsql_pass";
-	static var db   = "test_haxe_pgsql";
+class TestPostgres extends TestCase {
+	inline static var user = "test_haxe_pgsql_user";
+	inline static var pass = "test_haxe_pgsql_pass";
+	inline static var db   = "test_haxe_pgsql";
+
+	static var default_options ={
+        host     : "localhost",
+        user     : user,
+        database : db,
+        pass     : pass
+    }
 
 	var con : sys.db.Connection;
 
 	/**
-	  Set up database and table, runs for each test. 
-	  //TODO : put it in __init?
+	  Nuke the default schema every time the test is run
 	 **/
-	override public function setup(){
+	public static function __init(){
+		var initcon = Postgres.connect(default_options);
+		initcon.request('drop schema public');
+		initcon.request('create schema public');
+		initcon.close;
 
-		con = Postgres.connect({
-			host     : "localhost",
-			user     : user,
-			database : db,
-			pass     : pass
-		});
+    }
 
-		con.request('
-				CREATE TABLE Persons
-				(
-				 PersonID int,
-				 LastName varchar(255),
-				 FirstName varchar(255),
-				 Address varchar(255),
-				 City varchar(255)
-				)
-				');
-	}
-
-	/**
-	  Drop table on tear down
-	 **/
-	override public function tearDown(){
-		con.request("drop table Persons");
-		con.close();
-	}
+    override public function setup(){
+		con = Postgres.connect(default_options);
+    }
 
 	/**
 	  Am I even who I say I am?
 	 **/
-	public function testDbSanity() {
-		assertEquals(con.dbName(), "PostgreSQL");	
-	}
+	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
 
 	/**
 	  Basic test to ensure that a simple query works
@@ -68,7 +56,7 @@ class TestPostgres extends haxe.unit.TestCase {
 	}
 
 	/**
-		Test to ensure that date parsing works 
+		Test to ensure that date parsing works
 	 **/
 	public function testTimeParse(){
 		var time = Date.now().getTime();
@@ -78,5 +66,5 @@ class TestPostgres extends haxe.unit.TestCase {
 		var res_time = res_date.theTime.getTime();
 		assertEquals(time, res_time);
 	}
-	
+
 }
