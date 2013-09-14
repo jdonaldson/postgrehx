@@ -121,9 +121,8 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 	public function handleError(notice){
-		var msg : ServerMessage;
-		while({msg = readMessage(); true;}){
-			switch(msg){
+		while(true){
+			switch(socket.readMessage()){
 				case ReadyForQuery(status) : break;
 				case ni : throw('unexpected: $ni');
 			}
@@ -192,15 +191,13 @@ class PostgresConnection implements sys.db.Connection {
 	  can occur at any time during a Postgres session.
 	 */
 	function readMessage() : ServerMessage {
-		var msg : ServerMessage;
-		while ({msg = socket.readMessage(); true;}){
-			switch(msg){
+		while (true){
+			switch(socket.readMessage()){
 				case ParameterStatus(args) : status[args.name] = args.value;
 				case ErrorResponse(notice) : handleError(notice);
-				default : break;
+				case ni : return ni;
 			}
 		}
-		return msg;
 	}
 
 	/**
