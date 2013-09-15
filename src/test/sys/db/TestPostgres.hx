@@ -22,17 +22,17 @@ class TestPostgres extends TestCase {
 	 **/
 	public static function __init__(){
 	    // resetting the db on travis causes errors, and isn't necessary
-	    if (Sys.getEnv("Travis") == "true") return;
-
-		var initcon = Postgres.connect({
-			host	 : "localhost",
-			user	 : user,
-			database : db,
-			pass	 : pass
-		});
-		initcon.request('drop schema if exists public cascade');
-		initcon.request('create schema public');
-		initcon.close;
+	    if (Sys.getEnv("Travis") != "true") {
+            var initcon = Postgres.connect({
+                host	 : "localhost",
+                user	 : user,
+                database : db,
+                pass	 : pass
+            });
+            initcon.request('drop schema if exists public cascade');
+            initcon.request('create schema public');
+            initcon.close;
+        }
 
 	}
 
