@@ -3,7 +3,7 @@
 # and than apt-get install the others (e.g. Neko, C++).
 # For more info, see http://about.travis-ci.org/docs/user/ci-environment/
 language: php
-services: postgres 
+services: postgresql
  
 # Install Haxe before running the test.
 before_script:
