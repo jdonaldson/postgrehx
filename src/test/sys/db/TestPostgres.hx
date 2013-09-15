@@ -9,33 +9,78 @@ class TestPostgres extends TestCase {
 	inline static var db   = "test_haxe_pgsql";
 
 	static var default_options ={
-        host     : "localhost",
-        user     : user,
-        database : db,
-        pass     : pass
-    }
+		host	 : "localhost",
+		user	 : user,
+		database : db,
+		pass	 : pass
+	}
 
 	var con : sys.db.Connection;
 
 	/**
 	  Nuke the default schema every time the test is run
 	 **/
-	public static function __init(){
-		var initcon = Postgres.connect(default_options);
-		initcon.request('drop schema public');
+	public static function __init__(){
+		var initcon = Postgres.connect({
+			host	 : "localhost",
+			user	 : user,
+			database : db,
+			pass	 : pass
+		});
+		initcon.request('drop schema if exists public cascade');
 		initcon.request('create schema public');
 		initcon.close;
 
-    }
+	}
 
-    override public function setup(){
+	override public function setup(){
 		con = Postgres.connect(default_options);
-    }
+	}
 
 	/**
 	  Am I even who I say I am?
 	 **/
 	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
+
+
+	public function testBasicTable() {
+		var id = 12345;
+		var person = {
+			PersonID : id,
+			LastName : "Bar",
+			FirstName : "Foo",
+			Address : "Somewhere",
+			City : "Someplace",
+		}
+
+		con.request('
+				CREATE TABLE "Persons" (
+					"PersonID" int,
+					"LastName" varchar(255),
+					"FirstName" varchar(255),
+					"Address" varchar(255),
+					"City" varchar(255)
+					); '
+				);
+
+		con.request('
+				INSERT INTO "Persons" Values(
+					${person.PersonID},
+					${con.quote(person.LastName)},
+					${con.quote(person.FirstName)},
+					${con.quote(person.Address)},
+					${con.quote(person.City)}
+					)'
+				);
+
+		var res = con.request('
+				SELECT * FROM "Persons" WHERE "PersonID" = $id
+				');
+
+		assertEquals(res.length, 1);
+		assertEquals(Std.string(person), Std.string(res.next()));
+
+	}
 
 	/**
 	  Basic test to ensure that a simple query works
@@ -66,5 +111,4 @@ class TestPostgres extends TestCase {
 		var res_time = res_date.theTime.getTime();
 		assertEquals(time, res_time);
 	}
-
 }

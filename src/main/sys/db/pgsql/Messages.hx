@@ -5,13 +5,14 @@ import haxe.io.Input;
 import haxe.io.Output;
 import haxe.io.Bytes;
 import sys.db.pgsql.Error;
-typedef Int8 = Int;
+
+typedef Int8  = Int;
 typedef Int16 = Int;
 typedef Int32 = Int;
 
 class Messages {
 	public static function writeMessage(s: Socket, f: ClientMessageType): Void {
-	    var w = new Writer();
+		var w = new Writer();
 		var buffer = switch(f){
 			case StartupMessage(args): w.msgLength().addInt32(0x30000).addObj(args);
 			case PasswordMessage(s): w.addString('p').msgLength().addCString(s);
@@ -52,19 +53,19 @@ class Messages {
 			// case "d" : CopyData(input.readString(length));
 			// case "c" : CopyDone;
 			// case "G" : CopyInResponse({
-			// 	text_or_binary : input.readInt8(),
-			// 	num_columns    : input.readInt16(),
-			// 	formatCodes    : input.readInt16()
+			//	text_or_binary : input.readInt8(),
+			//	num_columns    : input.readInt16(),
+			//	formatCodes    : input.readInt16()
 			// });
 			// case "H" : CopyOutResponse({
-			// 	text_or_binary : input.readInt8(),
-			// 	num_columns    : input.readInt16(),
-			// 	formatCodes    : input.readInt16()
+			//	text_or_binary : input.readInt8(),
+			//	num_columns    : input.readInt16(),
+			//	formatCodes    : input.readInt16()
 			// });
 			// case "W" : CopyBothResponse({
-			// 	text_or_binary : input.readInt8(),
-			// 	num_columns    : input.readInt16(),
-			// 	formatCodes    : input.readInt16()
+			//	text_or_binary : input.readInt8(),
+			//	num_columns    : input.readInt16(),
+			//	formatCodes    : input.readInt16()
 			// });
 			case "D" : DataRow(
 				[for (i in 0...input.readInt16()) input.read(input.readInt32())]
@@ -72,19 +73,23 @@ class Messages {
 			case "I" : EmptyQueryResponse;
 			case "E" : ErrorResponse(decodeNotice(input));
 			// case "V" : FunctionCallResponse({
-			// 	function_result_length : input.readInt32(),
-			// 	function_result_value  : input.readString(length)
+			//	function_result_length : input.readInt32(),
+			//	function_result_value  : input.readString(length)
 			// });
 			// case "n" : NoData;
 			case "N" : NoticeResponse(decodeNotice(input));
-			// case "A" : NotificationResponse;
+			case "A" : NotificationResponse({
+				process_id : input.readInt32(),
+				channel    : input.readUntil(0),
+				payload    : input.readUntil(0)
+			});
 			// case "t" : ParameterDescription;
 			case "S" : ParameterStatus({
 				var name = input.readUntil(0); // delimited by null, adjust length below
 				{
 					name  : name,
 					value : input.readString(length - name.length - 1)
-			  	}
+				}
 			});
 
 			// case "1" : ParseComplete;
@@ -93,13 +98,13 @@ class Messages {
 			case "T" : RowDescription(
 					[ for (i in 0...input.readInt16())
 							{
-								name               : input.readUntil(0),
+								name			   : input.readUntil(0),
 								table_object_id    : input.readInt32(),
 								table_attribute_id : input.readInt16(),
 								datatype_object_id : input.readInt32(),
-								datatype_size      : input.readInt16(),
-								type_modifier      : input.readInt32(),
-								format_code        : input.readInt16()
+								datatype_size	   : input.readInt16(),
+								type_modifier	   : input.readInt32(),
+								format_code		   : input.readInt16()
 							}
 					]
 			);
@@ -157,69 +162,69 @@ enum AuthenticationRequestType{
 	AuthenticationOk;
 	AuthenticationKerberosV5;
 	AuthenticationCleartextPassword;
-	AuthenticationMD5Password(salt:String);
+	AuthenticationMD5Password(salt: String);
 	AuthenticationSCMCredential;
 	AuthenticationGSS;
 	AuthenticationSSPI;
-	AuthenticationGSSContinue(auth_data:String);
+	AuthenticationGSSContinue(auth_data: String);
 	AuthenticationUnknown;
 }
 
 typedef CopyResponseArguments = {
-	text_or_binary:Int,
-	num_columns:Int,
-	formatCodes:Int
+	text_or_binary : Int,
+	num_columns    : Int,
+	formatCodes    : Int
 }
 
 enum ServerMessage {
-	AuthenticationRequest(authType:AuthenticationRequestType);
-	BackendKeyData(args:{process_id:Int, secret_key:Int});
+	AuthenticationRequest(authType: AuthenticationRequestType);
+	BackendKeyData(args: {process_id: Int, secret_key: Int});
 	BindComplete;
 	CloseComplete;
-	CommandComplete(tag:String);
-	CopyData(stream:String);
+	CommandComplete(tag: String);
+	CopyData(stream: String);
 	CopyDone;
 	CopyInResponse(args: CopyResponseArguments);
 	CopyOutResponse(args: CopyResponseArguments);
 	CopyBothResponse(args: CopyResponseArguments);
-	DataRow(fields : Array<Bytes>);
+	DataRow(fields: Array<Bytes>);
 	EmptyQueryResponse;
 	ErrorResponse(notice: Notice);
-	FunctionCallResponse(args:{function_result_length:Int, function_result_value:String});
+	FunctionCallResponse(args: {function_result_length: Int, function_result_value: String});
 	NoData;
 	NoticeResponse(notice: Notice);
-	// NotificationResponse;
+	NotificationResponse(args: {process_id: Int, channel: String, payload: String});
 	// ParameterDescription;
 	ParameterStatus(args: {name: String, value: String});
 	// ParseComplete;
 	// PortalSuspended;
-	ReadyForQuery(status:String);
-	RowDescription( fields : Array<FieldDescription>);
-	Unknown(code:String);
+	ReadyForQuery(status: String);
+	RowDescription(fields: Array<FieldDescription>);
+	Unknown(code: String);
 }
 
 typedef FieldDescription = {
-	name               : String,
+	name			   : String,
 	table_object_id    : Int32,
 	table_attribute_id : Int16,
 	datatype_object_id : Int32,
-	datatype_size      : Int16,
-	type_modifier      : Int32,
-	format_code        : Int16
+	datatype_size	   : Int16,
+	type_modifier	   : Int32,
+	format_code		   : Int16
 }
 
 typedef StartupArgs = {
-	?user            : String,
-	?pass            : String,
-	?database        : String,
+	?user			 : String,
+	?pass			 : String,
+	?database		 : String,
 	?client_encoding : String,
 }
 
 typedef ConnectionArgs ={
 	> StartupArgs,
-	host : String,
-	port : Int,
-	socket :String,
+	host   : String,
+	port   : Int,
+	socket : String,
 
 }
 

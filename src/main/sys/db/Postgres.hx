@@ -128,14 +128,13 @@ class PostgresConnection implements sys.db.Connection {
 			}
 		}
 		throw(notice);
-
 	}
 
 	public function close() socket.close();
 
-/**
-	Use postgres escape quote: E'escaped string'
- **/
+    /**
+      Use postgres escape quote: E'escaped string'
+     **/
 	public function quote( s : String ): String {
 		var repl_quote = s.split("'").join("''");
 		return 'E\'$repl_quote\'';
@@ -188,13 +187,16 @@ class PostgresConnection implements sys.db.Connection {
 	/**
 	  Utility function that wraps the normal socket.readMessage function.
 	  This one will filter out and save ParameterStatus messages, which
-	  can occur at any time during a Postgres session.
+	  can occur at any time during a Postgres session. It also will throw
+	  errors from ErrorResponse messages, and filter out NotificationResponse
+	  messages.
 	 */
 	function readMessage() : ServerMessage {
 		while (true){
 			switch(socket.readMessage()){
 				case ParameterStatus(args) : status[args.name] = args.value;
 				case ErrorResponse(notice) : handleError(notice);
+				case NoticeResponse(notice) : null; // TODO : do something with this?
 				case ni : return ni;
 			}
 		}
@@ -294,16 +296,16 @@ class PostgresResultSet implements ResultSet {
 	  based on the postgres object id datatype.
 	 **/
 	static function readType(oid : DataType, bytes : Bytes): Dynamic {
-		var output = new haxe.io.BytesInput(bytes, 0, bytes.length);
+		var string = bytes.toString();
 		return switch(oid){
-			case DataType.oidINT8        : output.readInt32();
-			case DataType.oidINT4        : output.readInt16();
-			case DataType.oidINT2        : output.readInt8();
-			case DataType.oidBOOL        : output.readInt8() > 0;
-			case DataType.oidFLOAT4      : output.readFloat();
-			case DataType.oidFLOAT8      : output.readDouble();
-			case DataType.oidTIMESTAMPTZ : parseTimeStampTz(output.readString(bytes.length));
-			default                      : output.readString(bytes.length);
+			case DataType.oidINT8        : Std.parseInt(string);
+			case DataType.oidINT4        : Std.parseInt(string);
+			case DataType.oidINT2        : Std.parseInt(string);
+			case DataType.oidBOOL        : Std.parseInt(string);
+			case DataType.oidFLOAT4      : Std.parseFloat(string);
+			case DataType.oidFLOAT8      : Std.parseFloat(string);
+			case DataType.oidTIMESTAMPTZ : parseTimeStampTz(string);
+			default                      : string; 
 		}
 
 	}
