@@ -21,6 +21,9 @@ class TestPostgres extends TestCase {
 	  Nuke the default schema every time the test is run
 	 **/
 	public static function __init__(){
+	    // resetting the db on travis causes errors, and isn't necessary
+	    if (Sys.getEnv("Travis") == "true") return;
+
 		var initcon = Postgres.connect({
 			host	 : "localhost",
 			user	 : user,
