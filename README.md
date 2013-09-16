@@ -3,7 +3,11 @@
 Postgrehx is a pure Haxe implementation of the [Postgres wire
 protocol](http://www.postgresql.org/docs/9.2/static/protocol.html).
 
-This library is in an early alpha state.  Here's the current TODO:
+This library is in an early alpha state, but is passing some basic tests.
+
+[![Build Status](https://travis-ci.org/jdonaldson/postgrehx.png)](https://travis-ci.org/jdonaldson/postgrehx)
+
+Here's the current TODO:
 
 1. automatic decoding of types other than numbers, booleans, strings, 
    and timestamps.
