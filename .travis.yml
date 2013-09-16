@@ -7,6 +7,7 @@ services: postgresql
  
 # Install Haxe before running the test.
 before_script:
+  - psql -c 'create database test_haxe_pgsql;' -U postgres
   - sudo apt-get install python-software-properties -y # for the next command
   - sudo add-apt-repository ppa:eyecreate/haxe -y      # add the ubuntu ppa that contains haxe
   - sudo apt-get update                                # pull info from ppa
