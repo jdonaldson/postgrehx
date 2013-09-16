@@ -4,16 +4,9 @@ import sys.db.pgsql.Error;
 import haxe.unit.TestCase;
 
 class TestPostgres extends TestCase {
-	inline static var user = "test_haxe_pgsql_user";
-	inline static var pass = "test_haxe_pgsql_pass";
-	inline static var db   = "test_haxe_pgsql";
-
-	static var default_options ={
-		host	 : "localhost",
-		user	 : user,
-		database : db,
-		pass	 : pass
-	}
+    inline static var user = "test_haxe_pgsql_user";
+    inline static var pass = "test_haxe_pgsql_pass";
+    inline static var db   = "test_haxe_pgsql";
 
 	var con : sys.db.Connection;
 
@@ -32,12 +25,22 @@ class TestPostgres extends TestCase {
             initcon.request('drop schema if exists public cascade');
             initcon.request('create schema public');
             initcon.close;
-        }
-
+        } 
 	}
 
 	override public function setup(){
-		con = Postgres.connect(default_options);
+	    var set_user = user;
+	    var set_pass = pass;
+	    if (Sys.getEnv("Travis") == "true"){
+            set_user = "postgres";
+            set_pass = "";
+        }
+        con = Postgres.connect({
+            host	 : "localhost",
+            user	 : set_user,
+            database : db,
+            pass	 : set_pass
+        });
 	}
 
 	/**
