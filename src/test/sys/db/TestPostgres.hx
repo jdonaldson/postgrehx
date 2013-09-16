@@ -15,7 +15,7 @@ class TestPostgres extends TestCase {
 	 **/
 	public static function __init__(){
 	    // resetting the db on travis causes errors, and isn't necessary
-	    if (Sys.getEnv("Travis") != "true") {
+	    if (Sys.getEnv("TRAVIS") != "true") {
             var initcon = Postgres.connect({
                 host	 : "localhost",
                 user	 : user,
@@ -31,7 +31,7 @@ class TestPostgres extends TestCase {
 	override public function setup(){
 	    var set_user = user;
 	    var set_pass = pass;
-	    if (Sys.getEnv("Travis") == "true"){
+	    if (Sys.getEnv("TRAVIS") == "true"){
             set_user = "postgres";
             set_pass = "";
         }
