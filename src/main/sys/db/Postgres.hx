@@ -90,27 +90,33 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
     public function getDataRows(row_description: Array<FieldDescription>)
-        : Completion {
+        : CommandCompletion {
         var results: Array<Array<Bytes>> = [];
+        var set_tag: String = null;
         while(true){
             switch(readMessage()){
                 case DataRow(args)        : results.push(args);
-                case CommandComplete(tag) : break;
-                case ni                   : throw 'Unexpected message $ni in getDataRows';
+                case CommandComplete(tag) : { set_tag = tag; break;}
+                case ni                   : unexpectedMessage(ni);
             }
         }
-        return DataRows(row_description, results);
+        return DataRows(row_description, results, set_tag);
     }
 
-    public function getCompletions() : Array<Completion> {
-        var results: Array<Completion> = [];
+    inline static function unexpectedMessage(msg : ServerMessage){
+        throw 'Unexpected message $msg in this state';
+
+    }
+
+    public function getCompletions() : Array<CommandCompletion> {
+        var results: Array<CommandCompletion> = [];
         while(true){
             switch(readMessage()){
                 case EmptyQueryResponse    : results.push(EmptyQueryResponse);
                 case CommandComplete(tag)  : results.push(CommandComplete(tag));
                 case RowDescription(args)  : results.push(getDataRows(args));
                 case ReadyForQuery(status) : break;
-                case ni : throw 'Unexpected message $ni in getCompleteions';
+                case ni                    : unexpectedMessage(ni);
             }
         }
         return results;
@@ -127,7 +133,7 @@ class PostgresConnection implements sys.db.Connection {
                 handleTag(tag);
                 return new PostgresResultSet([], []);
             }
-            case DataRows(row_description, data_rows) : {
+            case DataRows(row_description, data_rows, tag) : {
                 return new PostgresResultSet(row_description, data_rows);
             }
         }
@@ -137,7 +143,7 @@ class PostgresConnection implements sys.db.Connection {
 		while(true){
 			switch(socket.readMessage()){
 				case ReadyForQuery(status) : break;
-				case ni : throw('unexpected: $ni');
+				case ni                    : unexpectedMessage(ni);
 			}
 		}
 		throw(notice);
@@ -228,7 +234,7 @@ class PostgresConnection implements sys.db.Connection {
 				if (rows == 1) this.last_insert_id = oid;
 			}
 			case "CREATE TABLE" : {
-				trace(values);
+			    null;
 			}
 
 
@@ -324,10 +330,17 @@ class PostgresResultSet implements ResultSet {
 	}
 }
 
-enum Completion {
+/**
+  This enum contains all of the relevant responses for a given command.
+  This can result in an empty query response, a command complete tag,
+  or a combination of row descriptions, row data, and a completion tag.
+ **/
+enum CommandCompletion {
     EmptyQueryResponse;
     CommandComplete(tag:String);
     DataRows(row_description: Array<FieldDescription>
-            , data_rows: Array<Array<Bytes>>);
+            , data_rows: Array<Array<Bytes>>
+            , tag : String
+            );
 }
 
