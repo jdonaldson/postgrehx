@@ -89,35 +89,48 @@ class PostgresConnection implements sys.db.Connection {
 		// connection is now in ready state
 	}
 
+    public function getDataRows(row_description: Array<FieldDescription>)
+        : Completion {
+        var results: Array<Array<Bytes>> = [];
+        while(true){
+            switch(readMessage()){
+                case DataRow(args)        : results.push(args);
+                case CommandComplete(tag) : break;
+                case ni                   : throw 'Unexpected message $ni in getDataRows';
+            }
+        }
+        return DataRows(row_description, results);
+    }
+
+    public function getCompletions() : Array<Completion> {
+        var results: Array<Completion> = [];
+        while(true){
+            switch(readMessage()){
+                case EmptyQueryResponse    : results.push(EmptyQueryResponse);
+                case CommandComplete(tag)  : results.push(CommandComplete(tag));
+                case RowDescription(args)  : results.push(getDataRows(args));
+                case ReadyForQuery(status) : break;
+                case ni : throw 'Unexpected message $ni in getCompleteions';
+            }
+        }
+        return results;
+    }
+
 	public function request( query : String ): ResultSet {
 		// write the query
 		writeMessage( Query(query) );
-		var msg = readMessage();
-		var field_descriptions = new Array<FieldDescription>();
-		// grab the first response, which is usually a row description
-		switch(msg){
-			case CommandComplete(tag)  : handleTag(tag);
-			case EmptyQueryResponse    : return new PostgresResultSet([],[]);
-			case RowDescription(args)  : field_descriptions = args;
-			default                    : trace('Unimplemented: $msg');
-		}
-		var data = new Array<Array<Bytes>>();
-
-		// TODO move this down to the result set next() function?
-		while(true){
-			// the second response contains the actual data
-			var msg = readMessage();
-			switch(msg){
-				case CommandComplete(tag)  : handleTag(tag);
-				case DataRow(args)         : data.push(args);
-				case ReadyForQuery(status) : break;
-				default                    : {
-					trace('Unimplemented : $msg');
-				}
-			}
-		}
-		var row_idx = 0;
-		return new PostgresResultSet(data,field_descriptions);
+        var completions = getCompletions();
+        var first_completion = completions[0];
+        switch(first_completion){
+            case EmptyQueryResponse : return new PostgresResultSet([],[]);
+            case CommandComplete(tag) : {
+                handleTag(tag);
+                return new PostgresResultSet([], []);
+            }
+            case DataRows(row_description, data_rows) : {
+                return new PostgresResultSet(row_description, data_rows);
+            }
+        }
 	}
 
 	public function handleError(notice){
@@ -231,7 +244,7 @@ class PostgresResultSet implements ResultSet {
 	public var nfields(get, null) : Int;
 	function get_length() return data.length;
 	function get_nfields() return field_descriptions.length;
-	public function new(data, field_descriptions){
+	public function new(field_descriptions, data){
 		this.data = data;
 		this.field_descriptions = field_descriptions;
 	}
@@ -305,8 +318,16 @@ class PostgresResultSet implements ResultSet {
 			case DataType.oidFLOAT4      : Std.parseFloat(string);
 			case DataType.oidFLOAT8      : Std.parseFloat(string);
 			case DataType.oidTIMESTAMPTZ : parseTimeStampTz(string);
-			default                      : string; 
+			default                      : string;
 		}
 
 	}
 }
+
+enum Completion {
+    EmptyQueryResponse;
+    CommandComplete(tag:String);
+    DataRows(row_description: Array<FieldDescription>
+            , data_rows: Array<Array<Bytes>>);
+}
+
