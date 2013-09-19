@@ -33,6 +33,7 @@ class PostgresConnection implements sys.db.Connection {
 	var secret_key     : Int;
 	var socket         : Socket;
 	var last_insert_id : Int;
+	var retrieving_results : Bool;
 
 	public function new( params : {
 		database : String,
@@ -49,6 +50,7 @@ class PostgresConnection implements sys.db.Connection {
 		socket.output.bigEndian = true;
 		var h = new Host(params.host);
 		socket.connect(h, params.port);
+		retrieving_results = false;
 
 		// write the startup message
 		writeMessage(
@@ -90,9 +92,10 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
     public function getDataRows(row_description: Array<FieldDescription>)
-        : CommandCompletion {
+        : CommandComplete {
         var results: Array<Array<Bytes>> = [];
         var set_tag: String = null;
+        retrieving_results = true;
         while(true){
             switch(readMessage()){
                 case DataRow(args)        : results.push(args);
@@ -100,16 +103,16 @@ class PostgresConnection implements sys.db.Connection {
                 case ni                   : unexpectedMessage(ni);
             }
         }
+        retrieving_results = false;
         return DataRows(row_description, results, set_tag);
     }
 
     inline static function unexpectedMessage(msg : ServerMessage){
         throw 'Unexpected message $msg in this state';
-
     }
 
-    public function getCompletions() : Array<CommandCompletion> {
-        var results: Array<CommandCompletion> = [];
+    public function getCommandCompletes() : Array<CommandComplete> {
+        var results: Array<CommandComplete> = [];
         while(true){
             switch(readMessage()){
                 case EmptyQueryResponse    : results.push(EmptyQueryResponse);
@@ -122,12 +125,30 @@ class PostgresConnection implements sys.db.Connection {
         return results;
     }
 
+	public function cleanup(msg : ServerMessage) : ServerMessage{
+	    var cur_msg = msg;
+	    while(true){
+            switch(cur_msg){
+                case DataRow(fields)       : cur_msg = readMessage();
+                case CommandComplete(tag)  : handleTag(tag);
+                case ReadyForQuery(status) : break;
+                case ni                    : unexpectedMessage(ni);
+            }
+            cur_msg = readMessage();
+        }
+        return cur_msg;
+    }
+
 	public function request( query : String ): ResultSet {
+
+        // clean up socket if there are leftovers
+		if (retrieving_results) cleanup(readMessage());
+
 		// write the query
 		writeMessage( Query(query) );
-        var completions = getCompletions();
-        var first_completion = completions[0];
-        switch(first_completion){
+        var completes = getCommandCompletes();
+        var first_complete = completes[0];
+        switch(first_complete){
             case EmptyQueryResponse : return new PostgresResultSet([],[]);
             case CommandComplete(tag) : {
                 handleTag(tag);
@@ -243,20 +264,25 @@ class PostgresConnection implements sys.db.Connection {
 }
 
 class PostgresResultSet implements ResultSet {
-	var data : Array<Array<Bytes>>;
-	var field_descriptions: Array<FieldDescription>;
+	var data               : Array<Array<Bytes>>;
+	var field_descriptions : Array<FieldDescription>;
 	var row_idx = 0;
+
 	public var length(get, null)  : Int;
 	public var nfields(get, null) : Int;
-	function get_length() return data.length;
+
+	function get_length()  return data.length;
 	function get_nfields() return field_descriptions.length;
+
 	public function new(field_descriptions, data){
 		this.data = data;
 		this.field_descriptions = field_descriptions;
 	}
+
 	public function getFieldsNames(){
 		return [for (f in field_descriptions) f.name];
 	}
+
 	public function getFloatResult(col_idx: Int){
 		var bytes       = data[row_idx][col_idx];
 		var bytes_input = new BytesInput(bytes, 0, bytes.length);
@@ -333,9 +359,9 @@ class PostgresResultSet implements ResultSet {
 /**
   This enum contains all of the relevant responses for a given command.
   This can result in an empty query response, a command complete tag,
-  or a combination of row descriptions, row data, and a completion tag.
+  or a combination of row descriptions, row data, and a complete tag.
  **/
-enum CommandCompletion {
+enum CommandComplete {
     EmptyQueryResponse;
     CommandComplete(tag:String);
     DataRows(row_description: Array<FieldDescription>
