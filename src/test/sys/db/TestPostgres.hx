@@ -83,7 +83,7 @@ class TestPostgres extends TestCase {
 				SELECT * FROM "Persons" WHERE "PersonID" = $id
 				');
 
-		assertEquals(res.length, 1);
+		assertEquals(1, res.length);
 		assertEquals(Std.string(person), Std.string(res.next()));
 
 	}
@@ -98,10 +98,10 @@ class TestPostgres extends TestCase {
 				FROM information_schema.tables
 				ORDER BY table_schema,table_name;
 				");
-				assertTrue(res.length > 0);
+        assertTrue(res.length > 0);
 
 		var obj = res.next();
-		assertEquals(Reflect.fields(obj).length, 2);
+		assertEquals(2, Reflect.fields(obj).length);
 		assertTrue(obj.table_schema != null);
 		assertTrue(obj.table_name != null);
 	}
@@ -112,7 +112,7 @@ class TestPostgres extends TestCase {
 	public function testTimeParse(){
 		var time = Date.now().getTime();
 		var res = con.request('SELECT NOW() AS "theTime"');
-		assertEquals(res.length, 1);
+		assertEquals(1, res.length);
 		var res_date : { theTime : Date} = untyped res.next();
 		var res_time = res_date.theTime.getTime();
 		assertEquals(time, res_time);
