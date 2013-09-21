@@ -28,12 +28,15 @@ class Postgres {
 }
 
 class PostgresConnection implements sys.db.Connection {
-	var status         : Map<String, String>;
-	var process_id     : Int;
-	var secret_key     : Int;
-	var socket         : Socket;
-	var last_insert_id : Int;
-	var retrieving_results : Bool;
+	var status              : Map<String, String>;
+	var process_id          : Int;
+	var secret_key          : Int;
+	var socket              : Socket;
+	var last_insert_id      : Int;
+
+	var current_data_iterator : Iterator<Array<Bytes>>;
+	var current_complete_iterator : Iterator<CommandComplete>;
+	var current_message           : ServerMessage;
 
 	public function new( params : {
 		database : String,
@@ -50,7 +53,13 @@ class PostgresConnection implements sys.db.Connection {
 		socket.output.bigEndian = true;
 		var h = new Host(params.host);
 		socket.connect(h, params.port);
-		retrieving_results = false;
+
+		// this is the current data row iterator for the result.
+		current_data_iterator = [].iterator();
+
+		// A request can have multiple command complete responses,
+		// this tracks them as an iterator.
+		current_complete_iterator = [].iterator();
 
 		// write the startup message
 		writeMessage(
@@ -91,71 +100,119 @@ class PostgresConnection implements sys.db.Connection {
 		// connection is now in ready state
 	}
 
-    public function getDataRows(row_description: Array<FieldDescription>)
-        : CommandComplete {
-        var results: Array<Array<Bytes>> = [];
-        var set_tag: String = null;
-        retrieving_results = true;
-        while(true){
-            switch(readMessage()){
-                case DataRow(args)        : results.push(args);
-                case CommandComplete(tag) : { set_tag = tag; break;}
-                case ni                   : unexpectedMessage(ni);
-            }
-        }
-        retrieving_results = false;
-        return DataRows(row_description, results, set_tag);
-    }
 
-    inline static function unexpectedMessage(msg : ServerMessage){
+    inline static function unexpectedMessage(msg : ServerMessage) : Void {
         throw 'Unexpected message $msg in this state';
     }
 
-    public function getCommandCompletes() : Array<CommandComplete> {
-        var results: Array<CommandComplete> = [];
-        while(true){
-            switch(readMessage()){
-                case EmptyQueryResponse    : results.push(EmptyQueryResponse);
-                case CommandComplete(tag)  : results.push(CommandComplete(tag));
-                case RowDescription(args)  : results.push(getDataRows(args));
-                case ReadyForQuery(status) : break;
-                case ni                    : unexpectedMessage(ni);
+    /**
+      This method builds an iteratorfor raw Array<Bytes> from data
+      rows on the current socket. In addition to info messages, it expects
+      DataRow and CommandComplete responses, and will throw errors if it
+      encounters something different.
+     **/
+    public function getDataRowIterator() : Iterator<Array<Bytes>>{
+
+        // save the current message so that we can inspect it multiple times
+        // if necessary.
+        current_message = readMessage();
+        return {
+            hasNext : function(){
+                switch(current_message){
+                    case DataRow(fields)      : return true;
+                    case CommandComplete(tag) : return false;
+                    case ni                   : unexpectedMessage(current_message);
+                }
+                return false;
+            },
+            next : function(){
+                var res : Array<Bytes>;
+                switch(current_message){
+                    case DataRow(fields) : res = fields;
+                    case ni              : unexpectedMessage(current_message);
+                }
+                current_message = readMessage();
+                return res;
             }
         }
-        return results;
     }
 
-	public function cleanup(msg : ServerMessage) : ServerMessage{
-	    var cur_msg = msg;
-	    while(true){
-            switch(cur_msg){
-                case DataRow(fields)       : cur_msg = readMessage();
-                case CommandComplete(tag)  : handleTag(tag);
-                case ReadyForQuery(status) : break;
-                case ni                    : unexpectedMessage(ni);
+    /**
+      This method builds an iterator for command completions.  Multiple
+      commands may be present in a single query.
+     **/
+    public function getCommandCompletesIterator()
+        : Iterator<CommandComplete> {
+        current_message = readMessage();
+        return {
+            hasNext : function(){
+                switch(current_message){
+                    case ReadyForQuery(status) : return false;
+                    default                    : return true;
+                }
+            },
+            next : function(){
+                // if there's anything left in the previous row iterator,
+                // get rid of it.
+                for (r in current_data_iterator) null;
+
+                var res = switch(current_message){
+                    case EmptyQueryResponse   : {
+                        current_message = readMessage(); // advance the msg
+                        EmptyQueryResponse;
+                    }
+                    case CommandComplete(tag) : {
+                        current_message = readMessage(); // advance the msg
+                        CommandComplete(tag);
+                    }
+                    case RowDescription(args) : {
+                        // don't advance the message here, let the row iterator
+                        // handle the message stream
+                        current_data_iterator = getDataRowIterator();
+                        DataRows(args, current_data_iterator);
+                    }
+                    case ni : { unexpectedMessage(ni); null; }
+                }
+                return res;
             }
-            cur_msg = readMessage();
         }
-        return cur_msg;
     }
 
+	/**
+	  This is the base "request" method from the Connection interface.
+
+      A couple of notes:
+
+      Multiple commands may be present in a postgres query result.  The default
+      here is to only use the first one for the ResultSet.  However, this
+      library uses an iterator pattern for retrieving data from sockets.
+      Since an iterator may be aborted, it is necessary to clean up both
+      pre-existing command results, as well as any data rows that the command
+      results contain. This is managed by simply exhausting their respective
+      iterators.
+
+	 **/
 	public function request( query : String ): ResultSet {
-
-        // clean up socket if there are leftovers
-		if (retrieving_results) cleanup(readMessage());
+        // clean up socket if there are leftovers from a previous request
+        for (i in current_complete_iterator) null;
 
 		// write the query
 		writeMessage( Query(query) );
-        var completes = getCommandCompletes();
-        var first_complete = completes[0];
+
+		// get the command completions, which will contain results
+        current_complete_iterator = this.getCommandCompletesIterator();
+
+        // we only want the first result
+        var first_complete = current_complete_iterator.next();
+
         switch(first_complete){
-            case EmptyQueryResponse : return new PostgresResultSet([],[]);
+            case EmptyQueryResponse : return new PostgresResultSet();
             case CommandComplete(tag) : {
                 handleTag(tag);
-                return new PostgresResultSet([], []);
+                return new PostgresResultSet();
             }
-            case DataRows(row_description, data_rows, tag) : {
-                return new PostgresResultSet(row_description, data_rows);
+            case DataRows(row_description, data_iterator) : {
+                return new PostgresResultSet(row_description, data_iterator);
             }
         }
 	}
@@ -203,10 +260,11 @@ class PostgresConnection implements sys.db.Connection {
 			s.add(quote(Std.string(v)));
 		}
 	}
+
 	public function lastInsertId() return this.last_insert_id;
 	public function dbName() return "PostgreSQL";
 	public function startTransaction() request("BEGIN;");
-	public function commit() request("COMMIT;");
+	public function commit()request("COMMIT;");
 	public function rollback() request("ROLLBACK;");
 
 	/**
@@ -264,18 +322,36 @@ class PostgresConnection implements sys.db.Connection {
 }
 
 class PostgresResultSet implements ResultSet {
-	var data               : Array<Array<Bytes>>;
+	var data_iterator      : Iterator<Array<Bytes>>;
 	var field_descriptions : Array<FieldDescription>;
-	var row_idx = 0;
+
+	var cached_rows        : Array<Array<Bytes>>;
+
+	var row_count                   = 0;
+	var set_length  : Int           = null;
+	var current_row : Array<Bytes>  = null;
 
 	public var length(get, null)  : Int;
 	public var nfields(get, null) : Int;
 
-	function get_length()  return data.length;
+	function get_length(){
+	    if (set_length == null){
+            cached_rows = [for(row in data_iterator) row];
+
+            set_length    = cached_rows.length + row_count;
+            data_iterator = cached_rows.iterator();
+        }
+	    return set_length;
+    };
+
 	function get_nfields() return field_descriptions.length;
 
-	public function new(field_descriptions, data){
-		this.data = data;
+	public function new(?field_descriptions, ?data_iterator){
+	    if (field_descriptions == null) field_descriptions = [];
+	    if (data_iterator == null) data_iterator = [].iterator();
+
+		this.data_iterator      = data_iterator;
+
 		this.field_descriptions = field_descriptions;
 	}
 
@@ -284,33 +360,37 @@ class PostgresResultSet implements ResultSet {
 	}
 
 	public function getFloatResult(col_idx: Int){
-		var bytes       = data[row_idx][col_idx];
-		var bytes_input = new BytesInput(bytes, 0, bytes.length);
-		return bytes_input.readFloat();
+        var bytes = current_row[col_idx];
+		return Std.parseFloat(bytes.toString());
 	}
 
 	public function	getIntResult(col_idx: Int){
-		var bytes       = data[row_idx][col_idx];
-		var bytes_input = new BytesInput(bytes, 0, bytes.length);
-		return bytes_input.readInt32();
+		var bytes = current_row[col_idx];
+		return cast Std.parseInt(bytes.toString());
 	}
 
 	public function getResult(col_idx: Int){
-		return data[row_idx][col_idx].toString();
+		return current_row[col_idx].toString();
 	}
 
-	public function hasNext() return (row_idx < data.length);
+	public function hasNext(){
+	    return data_iterator.hasNext();
+    }
 
 	public function next() {
+        current_row = data_iterator.next();
+
 		var obj = {};
-		var row = data[row_idx++];
 		for (idx in 0...field_descriptions.length) {
 			var field_desc = field_descriptions[idx];
-			Reflect.setField( obj,
-					field_desc.name,
-					readType(field_desc.datatype_object_id, row[idx])
-			);
+            Reflect.setField( obj,
+                    field_desc.name,
+                    readType(field_desc.datatype_object_id, current_row[idx])
+                    );
 		}
+
+		row_count += 1;
+
 		return obj;
 	}
 
@@ -365,8 +445,7 @@ enum CommandComplete {
     EmptyQueryResponse;
     CommandComplete(tag:String);
     DataRows(row_description: Array<FieldDescription>
-            , data_rows: Array<Array<Bytes>>
-            , tag : String
+            , data_rows: Iterator<Array<Bytes>>
             );
 }
 
