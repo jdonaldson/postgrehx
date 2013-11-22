@@ -8,13 +8,27 @@ class TestPostgres extends TestCase {
     inline static var user   = "test_haxe_user";
     inline static var pass   = "test_haxe_pass";
     inline static var db     = "test_haxe_db";
-    // inline static var schema = "test_haxe_schema:";
+    inline static var schema = "test_haxe_schema";
 
 	var con : sys.db.Connection;
 
 	/**
 	  Nuke the default schema every time the test is run
 	 **/
+    public static function __init__(){
+        // resetting the db on travis causes errors, and isn't necessary
+        if (Sys.getEnv("TRAVIS") != "true") {
+            var initcon = Postgres.connect({
+                host     : "localhost",
+                user     : user,
+                database : db,
+                pass     : pass
+            });
+            initcon.request('drop schema if exists $schema cascade');
+            initcon.request('create schema $schema');
+            initcon.close;
+        }
+    }
 
 	override public function setup(){
 	    var set_user = user;
