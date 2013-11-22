@@ -231,10 +231,13 @@ class PostgresConnection implements sys.db.Connection {
 
     /**
       Use postgres escape quote: E'escaped string'
+      Note that null values become empty strings,
+      and empty strings become NULL in postgres.
      **/
 	public function quote( s : String ): String {
-		var repl_quote = s.split("'").join("''");
-		return 'E\'$repl_quote\'';
+        if (s == null) return 'NULL';
+        s = s.split("'").join("''");
+        return 'E\'$s\'';
 	}
 
 	/**
@@ -295,7 +298,7 @@ class PostgresConnection implements sys.db.Connection {
 				case ParameterStatus(args) : status[args.name] = args.value;
 				case ErrorResponse(notice) : handleError(notice);
 				case NoticeResponse(notice) : null; // TODO : do something with this?
-				case ni : return ni;
+				case ni : return ni; // return anything that doesn't match above
 			}
 		}
 	}
@@ -421,6 +424,7 @@ class PostgresResultSet implements ResultSet {
 	  based on the postgres object id datatype.
 	 **/
 	static function readType(oid : DataType, bytes : Bytes): Dynamic {
+	    if (bytes == null) return null;
 		var string = bytes.toString();
 		return switch(oid){
 			case DataType.oidINT8        : Std.parseInt(string);

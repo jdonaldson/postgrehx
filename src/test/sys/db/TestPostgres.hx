@@ -52,6 +52,33 @@ class TestPostgres extends TestCase {
 	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
 
 
+	public function testNullValue() {
+	    var foo = {
+            Present : "bar",
+            Missing : null
+        }
+        con.request('
+                CREATE TABLE "NullValueTest" (
+                    "Present" varchar(255),
+                    "Missing" varchar(255)
+                    );
+                ');
+
+        con.request('
+                INSERT INTO "NullValueTest" Values(
+                    ${con.quote(foo.Present)},
+                    ${con.quote(foo.Missing)}
+                    );
+                ');
+        var res = con.request('
+                SELECT * FROM "NullValueTest"
+                ');
+
+        assertEquals(1, res.length);
+        var ret_foo : {Present:String, Missing:String} = res.results().first();
+        assertTrue(ret_foo.Missing == null);
+    }
+
 	public function testBasicTable() {
 		var id = 12345;
 		var person = {

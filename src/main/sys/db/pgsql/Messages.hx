@@ -68,7 +68,10 @@ class Messages {
 			//	formatCodes    : input.readInt16()
 			// });
 			case "D" : DataRow(
-				[for (i in 0...input.readInt16()) input.read(input.readInt32())]
+				[for (i in 0...input.readInt16()) {
+				    var length = input.readInt32();
+				    length == -1 ? null : input.read(length);
+				}]
 			);
 			case "I" : EmptyQueryResponse;
 			case "E" : ErrorResponse(decodeNotice(input));
