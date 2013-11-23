@@ -224,7 +224,7 @@ class PostgresConnection implements sys.db.Connection {
 				case ni                    : unexpectedMessage(ni);
 			}
 		}
-		throw(notice);
+		throw(notice.message);
 	}
 
 	public function close() socket.close();

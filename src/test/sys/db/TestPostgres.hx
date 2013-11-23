@@ -79,6 +79,26 @@ class TestPostgres extends TestCase {
         assertTrue(ret_foo.Missing == null);
     }
 
+	public function testRawNullValueInsert() {
+        con.request('
+                CREATE TABLE rawnullvaluetest (
+                    id integer NOT NULL,
+                    name character varying(255),
+                    date timestamp without time zone
+                    );
+                ');
+
+        con.request("INSERT INTO rawnullvaluetest VALUES (1, 'foo', NULL);");
+
+        var res = con.request('
+                SELECT * FROM rawnullvaluetest
+                ');
+        assertEquals(1, res.length);
+        var r = res.results().first();
+        assertTrue(r.id != null);
+        assertTrue(r.date == null);
+    }
+
 	public function testBasicTable() {
 		var id = 12345;
 		var person = {
