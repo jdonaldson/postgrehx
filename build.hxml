@@ -2,3 +2,9 @@
 -cp ./src/main/
 -main TestAll
 -x test
+
+--next
+-cp ./src/test/
+-cp ./src/main/
+-main PHPTest
+-php phptest
