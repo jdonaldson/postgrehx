@@ -160,7 +160,9 @@ class TestPostgres extends TestCase {
 		Test to ensure that date parsing works
 	 **/
 	public function testTimeParse(){
-		var time = Date.now().getTime();
+	    var now = Date.now();
+		var time = now.getTime();
+		time -= time % 1000; // round to seconds.
 		var res = con.request('SELECT NOW() AS "theTime"');
 		assertEquals(1, res.length);
 		var res_date : { theTime : Date} = untyped res.next();

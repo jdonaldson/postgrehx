@@ -1,4 +1,15 @@
+-cmd echo "----------------------------------------PHP----------------------------------------"
+-cp ./src/test/
+-cp ./src/main/
+-main TestAll
+-php test
+-cmd php ./test/index.php
+
+--next
+
+-cmd echo "----------------------------------------NEKO---------------------------------------"
 -cp ./src/test/
 -cp ./src/main/
 -main TestAll
 -x test
+

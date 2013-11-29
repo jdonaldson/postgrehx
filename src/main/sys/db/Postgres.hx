@@ -403,20 +403,12 @@ class PostgresResultSet implements ResultSet {
 	  Utility function to parse a postgres timestamp into a Haxe date.
 	 **/
 	static function parseTimeStampTz(stamp:String){
-		// split off time zone, can't parse those directly
-		var tz = stamp.substring(stamp.length - 3, stamp.length);
-		var offset = Std.parseInt(tz);
-
-		// split off milliseconds, can't encode those
-		var date = Date.fromString(stamp.split('.')[0]);
-
-		// leap year adjustment
-		// var days = (date.getFullYear() % 4 == 0) ? 366 : 365;
-
-		return date;
-
-		//  modify the original stamp by the offset, giving utc
-		// return DateTools.delta(date, offset / (24 * days));
+#if !php
+        // php needs the time zone information, and will ignore the millisecond
+        // argument.  Other platforms need to have this removed.
+		stamp = stamp.split('.')[0];
+#end
+	    return Date.fromString(stamp);
 	}
 
 	/**

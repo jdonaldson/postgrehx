@@ -70,7 +70,16 @@ class Messages {
 			case "D" : DataRow(
 				[for (i in 0...input.readInt16()) {
 				    var length = input.readInt32();
-				    length == -1 ? null : input.read(length);
+#if php
+                    if (untyped length > 2147483647) {
+                        untyped length -= 4294967296;
+                    }
+#end
+				    if (length == -1){
+                           null;
+                       } else {
+                           input.read(length);
+                       }
 				}]
 			);
 			case "I" : EmptyQueryResponse;
