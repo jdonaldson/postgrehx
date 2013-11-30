@@ -101,12 +101,16 @@ class TestPostgres extends TestCase {
 
 	public function testBasicTable() {
 		var id = 12345;
+		var max_int_32 = 2147483647;
+		var min_int_32 = -2147483648;
 		var person = {
 			PersonID  : id,
 			LastName  : "Bar",
 			FirstName : "Foo",
 			Address   : "Somewhere",
 			City      : "Someplace",
+			MaxInt32  : max_int_32,
+			MinInt32  : min_int_32
 		}
 
 		con.request('
@@ -115,7 +119,9 @@ class TestPostgres extends TestCase {
 					"LastName"  varchar(255),
 					"FirstName" varchar(255),
 					"Address"   varchar(255),
-					"City"      varchar(255)
+					"City"      varchar(255),
+					"MaxInt32"  int,
+					"MinInt32"  int
 					); '
 				);
 
@@ -125,7 +131,9 @@ class TestPostgres extends TestCase {
 					${con.quote(person.LastName)},
 					${con.quote(person.FirstName)},
 					${con.quote(person.Address)},
-					${con.quote(person.City)}
+					${con.quote(person.City)},
+				    ${person.MaxInt32},
+				    ${person.MinInt32}
 					)'
 				);
 
@@ -134,7 +142,8 @@ class TestPostgres extends TestCase {
 				');
 
 		assertEquals(1, res.length);
-		assertEquals(Std.string(person), Std.string(res.next()));
+		var rec = res.next();
+		assertEquals(Std.string(person), Std.string(rec));
 
 	}
 

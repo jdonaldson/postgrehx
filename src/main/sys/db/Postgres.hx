@@ -231,8 +231,8 @@ class PostgresConnection implements sys.db.Connection {
 
     /**
       Use postgres escape quote: E'escaped string'
-      Note that null values become empty strings,
-      and empty strings become NULL in postgres.
+      Note that null values become special NULL tokens.
+      Empty strings become NULL in postgres.
      **/
 	public function quote( s : String ): String {
         if (s == null) return 'NULL';
@@ -304,7 +304,7 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 	/**
-	  Utility function to handle postgres tags (and capture last insert id's)
+	  Utility function to handle postgres tags (and capture last insert ids)
 	 **/
 	function handleTag(tag:String){
 		var values = tag.split(' ');
@@ -376,7 +376,7 @@ class PostgresResultSet implements ResultSet {
 		return current_row[col_idx].toString();
 	}
 
-	public function hasNext(){
+	inline public function hasNext(){
 	    return data_iterator.hasNext();
     }
 
@@ -440,7 +440,7 @@ class PostgresResultSet implements ResultSet {
 enum CommandComplete {
     EmptyQueryResponse;
     CommandComplete(tag:String);
-    DataRows(row_description: Array<FieldDescription>
+    DataRows( row_description: Array<FieldDescription>
             , data_rows: Iterator<Array<Bytes>>
             );
 }
