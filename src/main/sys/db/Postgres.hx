@@ -34,7 +34,7 @@ class PostgresConnection implements sys.db.Connection {
 	var socket              : Socket;
 	var last_insert_id      : Int;
 
-	var current_data_iterator : Iterator<Array<Bytes>>;
+	var current_data_iterator     : Iterator<Array<Bytes>>;
 	var current_complete_iterator : Iterator<CommandComplete>;
 	var current_message           : ServerMessage;
 
@@ -423,6 +423,7 @@ class PostgresResultSet implements ResultSet {
 			case DataType.oidINT4        : Std.parseInt(string);
 			case DataType.oidINT2        : Std.parseInt(string);
 			case DataType.oidBOOL        : Std.parseInt(string);
+			case DataType.oidJSON        : haxe.Json.parse(string);
 			case DataType.oidFLOAT4      : Std.parseFloat(string);
 			case DataType.oidFLOAT8      : Std.parseFloat(string);
 			case DataType.oidTIMESTAMPTZ : parseTimeStampTz(string);

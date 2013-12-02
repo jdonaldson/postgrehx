@@ -38,7 +38,7 @@ class Messages {
 					// case 6 : AuthenticationSCMCredential;
 					// case 7 : AuthenticationGSS;
 					// case 9 : AuthenticationSSPI;
-					// case 8 : AuthenticationGSSContinue(input.readString(length-4)); // int32 - byte
+					// case 8 : AuthenticationGSSContinue(input.readString(length));
 					case _ : AuthenticationUnknown;
 				}
 				AuthenticationRequest(type);

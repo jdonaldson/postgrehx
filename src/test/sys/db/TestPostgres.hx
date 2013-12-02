@@ -99,6 +99,36 @@ class TestPostgres extends TestCase {
         assertTrue(r.date == null);
     }
 
+	public function testJsonTable() {
+		var id = 23456;
+		var json_dump = {
+			Id  : id,
+			data : {foo : 12}
+		}
+
+		con.request('
+				CREATE TABLE "JsonDump" (
+					"Id"   int,
+					"data" json
+					); '
+				);
+
+		var req = '
+                INSERT INTO "JsonDump" Values(
+                    ${json_dump.Id},
+                    ${con.quote(haxe.Json.stringify(json_dump.data))}
+                    )';
+
+		con.request(req);
+
+		var res = con.request('
+				SELECT * FROM "JsonDump" WHERE data->>\'foo\' = \'12\'
+				');
+		assertTrue(res.length == 1);
+		var rec = res.next();
+		assertEquals(rec.data.foo, 12);
+    }
+
 	public function testBasicTable() {
 		var id = 12345;
 		var max_int_32 = 2147483647;
