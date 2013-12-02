@@ -126,7 +126,7 @@ class PostgresConnection implements sys.db.Connection {
                 return false;
             },
             next : function(){
-                var res : Array<Bytes>;
+                var res : Array<Bytes> = [];
                 switch(current_message){
                     case DataRow(fields) : res = fields;
                     case ni              : unexpectedMessage(current_message);
