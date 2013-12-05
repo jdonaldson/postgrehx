@@ -101,8 +101,8 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 
-    inline static function unexpectedMessage(msg : ServerMessage) : Void {
-        throw 'Unexpected message $msg in this state';
+    inline static function unexpectedMessage(msg : ServerMessage, state : String) : Void {
+        throw 'Unexpected message $msg in $state';
     }
 
     /**
@@ -113,15 +113,18 @@ class PostgresConnection implements sys.db.Connection {
      **/
     public function getDataRowIterator() : Iterator<Array<Bytes>>{
 
-        // save the current message so that we can inspect it multiple times
-        // if necessary.
-        current_message = readMessage();
         return {
             hasNext : function(){
+                // RowDescription is necessary because the data row iterator
+                // is fast-forwarded at the beginning of the command complete iterator.
+                // If RowDescription is showing, it's the start of a normal record set.
+                // CommandComplete means that it was a non-record producing query result (e.g. insert).
+                // Data row contains useful data, which supports iteration
                 switch(current_message){
-                    case DataRow(fields)      : return true;
-                    case CommandComplete(tag) : return false;
-                    case ni                   : unexpectedMessage(current_message);
+                    case DataRow(fields)        : return true;
+                    case CommandComplete(tag)   : return false;
+                    case RowDescription(fields) : return false;
+                    case ni                     : unexpectedMessage(current_message, 'getDataRowIterator.hasNext');
                 }
                 return false;
             },
@@ -129,7 +132,7 @@ class PostgresConnection implements sys.db.Connection {
                 var res : Array<Bytes> = [];
                 switch(current_message){
                     case DataRow(fields) : res = fields;
-                    case ni              : unexpectedMessage(current_message);
+                    case ni              : unexpectedMessage(current_message, 'getDataRowIterator.next');
                 }
                 current_message = readMessage();
                 return res;
@@ -143,7 +146,6 @@ class PostgresConnection implements sys.db.Connection {
      **/
     public function getCommandCompletesIterator()
         : Iterator<CommandComplete> {
-        current_message = readMessage();
         return {
             hasNext : function(){
                 switch(current_message){
@@ -166,12 +168,11 @@ class PostgresConnection implements sys.db.Connection {
                         CommandComplete(tag);
                     }
                     case RowDescription(args) : {
-                        // don't advance the message here, let the row iterator
-                        // handle the message stream
+                        current_message = readMessage();
                         current_data_iterator = getDataRowIterator();
                         DataRows(args, current_data_iterator);
                     }
-                    case ni : { unexpectedMessage(ni); null; }
+                    case ni : { unexpectedMessage(ni, 'getCommandCompletesIterator.next'); null; }
                 }
                 return res;
             }
@@ -199,6 +200,9 @@ class PostgresConnection implements sys.db.Connection {
 		// write the query
 		writeMessage( Query(query) );
 
+        // read the first message
+        current_message = readMessage();
+
 		// get the command completions, which will contain results
         current_complete_iterator = this.getCommandCompletesIterator();
 
@@ -221,7 +225,7 @@ class PostgresConnection implements sys.db.Connection {
 		while(true){
 			switch(socket.readMessage()){
 				case ReadyForQuery(status) : break;
-				case ni                    : unexpectedMessage(ni);
+				case ni                    : unexpectedMessage(ni, 'handleError');
 			}
 		}
 		throw(notice.message);
@@ -330,13 +334,9 @@ class PostgresResultSet implements ResultSet {
 
 	var cached_rows        : Array<Array<Bytes>>;
 
-	var row_count                   = 0;
-#if php // On static platforms, null can't be used as basic type Int
-	var set_length  : Int           = 0;
-#else
-  var set_length  : Int           = null;
-#end
-	var current_row : Array<Bytes>  = null;
+	var row_count                  = 0;
+	var set_length  : Null<Int>    = null;
+	var current_row : Array<Bytes> = null;
 
 	public var length(get, null)  : Int;
 	public var nfields(get, null) : Int;
