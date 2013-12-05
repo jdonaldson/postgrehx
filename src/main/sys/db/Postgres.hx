@@ -240,7 +240,7 @@ class PostgresConnection implements sys.db.Connection {
      **/
 	public function quote( s : String ): String {
         if (s == null) return 'NULL';
-        s = s.split("'").join("''");
+        s = s.split("'").join("''").split("\\").join("\\\\");
         return 'E\'$s\'';
 	}
 
