@@ -101,8 +101,8 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 
-    inline static function unexpectedMessage(msg : ServerMessage) : Void {
-        throw 'Unexpected message $msg in this state';
+    inline static function unexpectedMessage(msg : ServerMessage, state : String) : Void {
+        throw 'Unexpected message $msg in $state';
     }
 
     /**
@@ -121,7 +121,7 @@ class PostgresConnection implements sys.db.Connection {
                 switch(current_message){
                     case DataRow(fields)      : return true;
                     case CommandComplete(tag) : return false;
-                    case ni                   : unexpectedMessage(current_message);
+                    case ni                   : unexpectedMessage(current_message, 'getDataRowIterator.hasNext');
                 }
                 return false;
             },
@@ -129,7 +129,7 @@ class PostgresConnection implements sys.db.Connection {
                 var res : Array<Bytes>;
                 switch(current_message){
                     case DataRow(fields) : res = fields;
-                    case ni              : unexpectedMessage(current_message);
+                    case ni              : unexpectedMessage(current_message, 'getDataRowIterator.next');
                 }
                 current_message = readMessage();
                 return res;
@@ -171,7 +171,7 @@ class PostgresConnection implements sys.db.Connection {
                         current_data_iterator = getDataRowIterator();
                         DataRows(args, current_data_iterator);
                     }
-                    case ni : { unexpectedMessage(ni); null; }
+                    case ni : { unexpectedMessage(ni, 'getCommandCompletesIterator.next'); null; }
                 }
                 return res;
             }
@@ -221,7 +221,7 @@ class PostgresConnection implements sys.db.Connection {
 		while(true){
 			switch(socket.readMessage()){
 				case ReadyForQuery(status) : break;
-				case ni                    : unexpectedMessage(ni);
+				case ni                    : unexpectedMessage(ni, 'handleError');
 			}
 		}
 		throw(notice.message);
