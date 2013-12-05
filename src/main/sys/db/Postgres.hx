@@ -129,7 +129,7 @@ class PostgresConnection implements sys.db.Connection {
                 return false;
             },
             next : function(){
-                var res : Array<Bytes>;
+                var res : Array<Bytes> = [];
                 switch(current_message){
                     case DataRow(fields) : res = fields;
                     case ni              : unexpectedMessage(current_message, 'getDataRowIterator.next');
@@ -240,7 +240,7 @@ class PostgresConnection implements sys.db.Connection {
      **/
 	public function quote( s : String ): String {
         if (s == null) return 'NULL';
-        s = s.split("'").join("''");
+        s = s.split("'").join("''").split("\\").join("\\\\");
         return 'E\'$s\'';
 	}
 

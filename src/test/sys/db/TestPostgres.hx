@@ -51,7 +51,6 @@ class TestPostgres extends TestCase {
 	 **/
 	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
 
-
 	public function testNullValue() {
 	    var foo = {
             Present : "bar",
@@ -76,6 +75,7 @@ class TestPostgres extends TestCase {
 
         assertEquals(1, res.length);
         var ret_foo : {Present:String, Missing:String} = res.results().first();
+
         assertTrue(ret_foo.Missing == null);
     }
 
@@ -91,10 +91,11 @@ class TestPostgres extends TestCase {
         con.request("INSERT INTO rawnullvaluetest VALUES (1, 'foo', NULL);");
 
         var res = con.request('
-                SELECT * FROM rawnullvaluetest
+                SELECT * FROM test_haxe_schema.rawnullvaluetest
                 ');
         assertEquals(1, res.length);
         var r = res.results().first();
+        
         assertTrue(r.id != null);
         assertTrue(r.date == null);
     }
@@ -118,7 +119,7 @@ class TestPostgres extends TestCase {
                     ${json_dump.Id},
                     ${con.quote(haxe.Json.stringify(json_dump.data))}
                     )';
-
+    
 		con.request(req);
 
 		var res = con.request('
@@ -127,7 +128,45 @@ class TestPostgres extends TestCase {
 		assertTrue(res.length == 1);
 		var rec = res.next();
 		assertEquals(rec.data.foo, 12);
-    }
+	}
+
+	/**
+		test that backslashes get escaped
+		postgres errors: invalid input syntax for type json
+	 **/
+	public function testJsonEscapeString() {
+		var id = 23456;
+		var json_dump = {
+			Id	: id,
+			data : {
+				foo : 12,
+				text : "first line\r\nsecond line\ttabbed"
+			}
+		}
+
+		con.request('
+				CREATE TABLE "JsonEscapeString" (
+					"Id"	 int,
+					"data" json
+					); '
+				);
+
+		var req = '
+								INSERT INTO "JsonEscapeString" Values(
+										${json_dump.Id},
+										${con.quote(haxe.Json.stringify(json_dump.data))}
+										)';
+		
+		con.request(req);
+
+		var res = con.request('
+				SELECT * FROM "JsonEscapeString" WHERE data->>\'foo\' = \'12\'
+				');
+		assertTrue(res.length == 1);
+		var rec = res.next();
+
+		assertEquals(rec.data.text, "first line\r\nsecond line\ttabbed");
+	}
 
 	public function testBasicTable() {
 		var id = 12345;
