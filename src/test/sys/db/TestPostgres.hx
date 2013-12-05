@@ -141,6 +141,7 @@ class TestPostgres extends TestCase {
 
         assertEquals(1, res.length);
         var ret_foo : {Present:String, Missing:String} = res.results().first();
+
         assertTrue(ret_foo.Missing == null);
     }
 
@@ -156,10 +157,11 @@ class TestPostgres extends TestCase {
         con.request("INSERT INTO rawnullvaluetest VALUES (1, 'foo', NULL);");
 
         var res = con.request('
-                SELECT * FROM rawnullvaluetest
+                SELECT * FROM test_haxe_schema.rawnullvaluetest
                 ');
         assertEquals(1, res.length);
         var r = res.results().first();
+        trace(r);
         assertTrue(r.id != null);
         assertTrue(r.date == null);
     }
