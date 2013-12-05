@@ -61,31 +61,6 @@ class TestPostgres extends TestCase {
 	 **/
 	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
 
-  /**
-    Test exhausting iterators in a multiple requests
-  **/
-  public function testMultipleRequests(){
-
-    con.request('
-                CREATE TABLE multiplerequests (
-                    id integer NOT NULL,
-                    name character varying(255),
-                    date timestamp without time zone
-                    );
-                ');
-
-    con.request('INSERT INTO multiplerequests VALUES (1, ${con.quote("foo")}, ${con.quote(Std.string(Date.now()))});');
-
-    for(i in 0...3){
-      var res = con.request('
-            SELECT * FROM multiplerequests
-            ');
-      assertEquals(1, res.length);
-      var r = res.results().first();
-      assertTrue(r.id != null);
-    }
-  }
-
   public function testSPODManagerTest() {
     
     // this errors, skip for now
@@ -161,7 +136,7 @@ class TestPostgres extends TestCase {
                 ');
         assertEquals(1, res.length);
         var r = res.results().first();
-        trace(r);
+        
         assertTrue(r.id != null);
         assertTrue(r.date == null);
     }
