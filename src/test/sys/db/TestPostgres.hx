@@ -4,15 +4,6 @@ import sys.db.Postgres;
 import sys.db.pgsql.Error;
 import haxe.unit.TestCase;
 
-@:table("SpodObjectTest")
-@:id(id)
-class TestSpodObject extends sys.db.Object{
-
-  public var id: SId;
-  public var name: SString<255>;
-  public var date: SDate;
-}
-
 class TestPostgres extends TestCase {
 
     inline static var user   = "test_haxe_user";
@@ -60,37 +51,6 @@ class TestPostgres extends TestCase {
 	  Am I even who I say I am?
 	 **/
 	public function testDbSanity() assertEquals(con.dbName(), "PostgreSQL");
-
-  public function testSPODManagerTest() {
-    
-    // this errors, skip for now
-    assertTrue(true);
-    return;
-
-
-    con.request('
-      CREATE TABLE SpodObjectTest (
-          id SERIAL NOT NULL,
-          name character varying(255),
-          date timestamp without time zone
-          );
-    ');
-
-    var test_spod_object:TestSpodObject = new TestSpodObject();
-    test_spod_object.name = "test";
-    test_spod_object.date = Date.now();
-    test_spod_object.insert();
-
-    assertTrue(test_spod_object.id != null);
-    
-    if(test_spod_object.id != null){
-      var test_spod_manager:Manager<TestSpodObject> = new Manager<TestSpodObject>(TestSpodObject);
-      var get_spod_object:TestSpodObject = test_spod_manager.get(test_spod_object.id);
-      assertTrue(get_spod_object != null);
-      assertTrue(get_spod_object.name == "test");
-    }
-    
-  }
 
 	public function testNullValue() {
 	    var foo = {
