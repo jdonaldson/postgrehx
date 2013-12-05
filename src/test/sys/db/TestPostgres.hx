@@ -127,7 +127,7 @@ class TestPostgres extends TestCase {
                     ${json_dump.Id},
                     ${con.quote(haxe.Json.stringify(json_dump.data))}
                     )';
-
+    
 		con.request(req);
 
 		var res = con.request('
@@ -136,7 +136,45 @@ class TestPostgres extends TestCase {
 		assertTrue(res.length == 1);
 		var rec = res.next();
 		assertEquals(rec.data.foo, 12);
-    }
+	}
+
+	/**
+		test that backslashes get escaped
+		postgres errors: invalid input syntax for type json
+	 **/
+	public function testJsonEscapeString() {
+		var id = 23456;
+		var json_dump = {
+			Id	: id,
+			data : {
+				foo : 12,
+				text : "first line\r\nsecond line\ttabbed"
+			}
+		}
+
+		con.request('
+				CREATE TABLE "JsonEscapeString" (
+					"Id"	 int,
+					"data" json
+					); '
+				);
+
+		var req = '
+								INSERT INTO "JsonEscapeString" Values(
+										${json_dump.Id},
+										${con.quote(haxe.Json.stringify(json_dump.data))}
+										)';
+		
+		con.request(req);
+
+		var res = con.request('
+				SELECT * FROM "JsonEscapeString" WHERE data->>\'foo\' = \'12\'
+				');
+		assertTrue(res.length == 1);
+		var rec = res.next();
+
+		assertEquals(rec.data.text, "first line\r\nsecond line\ttabbed");
+	}
 
 	public function testBasicTable() {
 		var id = 12345;
