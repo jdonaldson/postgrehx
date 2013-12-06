@@ -51,7 +51,7 @@ run the tools/destroy_db.sh script.
 ## Acknowledgments
 
 Thanks to [theRemix](https://github.com/theremix) and
-[back2Dos](https://github.com/back2dos)for contributing test cases
+[back2Dos](https://github.com/back2dos) for contributing test cases
 and fixes.
 
 
