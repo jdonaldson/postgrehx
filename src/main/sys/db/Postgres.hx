@@ -32,7 +32,6 @@ class PostgresConnection implements sys.db.Connection {
 	var process_id          : Int;
 	var secret_key          : Int;
 	var socket              : Socket;
-	var last_insert_id      : Int;
 
 	var current_data_iterator     : Iterator<Array<Bytes>>;
 	var current_complete_iterator : Iterator<CommandComplete>;
@@ -208,7 +207,7 @@ class PostgresConnection implements sys.db.Connection {
 
         // we only want the first result
         var first_complete = current_complete_iterator.next();
-
+        
         switch(first_complete){
             case EmptyQueryResponse : return new PostgresResultSet();
             case CommandComplete(tag) : {
@@ -223,12 +222,12 @@ class PostgresConnection implements sys.db.Connection {
 
 	public function handleError(notice){
 		while(true){
-			switch(socket.readMessage()){
+      switch(socket.readMessage()){
 				case ReadyForQuery(status) : break;
 				case ni                    : unexpectedMessage(ni, 'handleError');
 			}
 		}
-		throw(notice.message);
+    throw(notice.message);
 	}
 
 	public function close() socket.close();
@@ -268,7 +267,13 @@ class PostgresConnection implements sys.db.Connection {
 		}
 	}
 
-	public function lastInsertId() return this.last_insert_id;
+	public function lastInsertId():Int{
+    try{
+      var res = request("SELECT LASTVAL()");
+      return Std.parseInt(res.next().lastval);  
+    }catch(e:Dynamic) return null;
+    
+  };
 	public function dbName() return "PostgreSQL";
 	public function startTransaction() request("BEGIN;");
 	public function commit()request("COMMIT;");
@@ -308,16 +313,22 @@ class PostgresConnection implements sys.db.Connection {
 	}
 
 	/**
-	  Utility function to handle postgres tags (and capture last insert ids)
+	  Utility function to handle postgres tags (and query the last insert ids)
+    ex: INSERT 0 1
 	 **/
 	function handleTag(tag:String){
 		var values = tag.split(' ');
-		var command = values.pop();
+		var command = values.shift();
 		switch(command){
 			case "INSERT" : {
-				var oid  = Std.parseInt(values.pop());
-				var rows = Std.parseInt(values.pop());
-				if (rows == 1) this.last_insert_id = oid;
+				var oid  = Std.parseInt(values.shift());
+				var rows = Std.parseInt(values.shift());
+				if (rows == 1){
+          // this breaks for tables without sequences
+          // just use lastInsertId();
+          // var res = request("SELECT LASTVAL()");
+          // this.last_insert_id = res.next().lastval;
+        }
 			}
 			case "CREATE TABLE" : {
 			    null;

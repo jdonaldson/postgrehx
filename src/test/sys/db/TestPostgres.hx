@@ -248,28 +248,75 @@ class TestPostgres extends TestCase {
 		assertEquals(time, res_time);
 	}
 
-    /**
-      Test exhausting iterators in a multiple requests
-     **/
-    public function testMultipleRequests(){
+	/**
+		Test exhausting iterators in a multiple requests
+	 **/
+	public function testMultipleRequests(){
+		con.request('
+						CREATE TABLE multiplerequests (
+								id SERIAL NOT NULL,
+								name character varying(255),
+								date timestamp without time zone
+								);
+						');
 
-        con.request('
-                CREATE TABLE multiplerequests (
-                    id integer NOT NULL,
-                    name character varying(255),
-                    date timestamp without time zone
-                    );
-                ');
+		con.request('INSERT INTO multiplerequests (name,date) VALUES (${con.quote("foo")}, ${con.quote(Std.string(Date.now()))});');
 
-        con.request('INSERT INTO multiplerequests VALUES (1, ${con.quote("foo")}, ${con.quote(Std.string(Date.now()))});');
+		for(i in 0...3){
+				var res = con.request('
+								SELECT * FROM multiplerequests
+								');
+				assertEquals(1, res.length);
+				var r = res.results().first();
+				assertTrue(r.id != null);
+		}
+	}
 
-        for(i in 0...3){
-            var res = con.request('
-                    SELECT * FROM multiplerequests
-                    ');
-            assertEquals(1, res.length);
-            var r = res.results().first();
-            assertTrue(r.id != null);
-        }
-    }
+	/**
+		Test multiple inserts, and getting last insert ids
+	 **/
+	public function testMultipleInserts(){
+
+		con.request('
+						CREATE TABLE multipleinserts (
+								id SERIAL NOT NULL,
+								name character varying(255),
+								date timestamp without time zone,
+								CONSTRAINT multiplereinserts_pk PRIMARY KEY (id)
+						);
+						');
+
+		var insert_ids = [];
+		for(i in 0...3){
+			con.request('INSERT INTO multipleinserts (name,date) VALUES (${con.quote("foo")}, ${con.quote(Std.string(Date.now()))});');
+			insert_ids.push(con.lastInsertId());
+		}
+
+		var res = con.request('
+								SELECT * FROM multipleinserts
+								').results();
+		
+		for(i in 0...res.length){
+			var r = res.pop();
+			assertEquals(r.id, insert_ids[i]);
+		}
+		
+	}
+
+	/**
+		Test single inserts, con.lastInsertId() should be null
+	 **/
+	public function testSingleInsert(){
+
+		con.request('
+						CREATE TABLE singleinsert (
+								foo character varying(255),
+								date timestamp without time zone
+						);');
+		
+		
+		con.request('INSERT INTO singleinsert (foo,date) VALUES (${con.quote("bar")}, ${con.quote(Std.string(Date.now()))});');
+		
+		assertEquals(con.lastInsertId(), null);
+	}
 }
