@@ -2,6 +2,15 @@ package sys.db;
 import sys.db.Postgres;
 import sys.db.pgsql.Error;
 import haxe.unit.TestCase;
+import sys.db.Types;
+import sys.db.Sqlite;
+
+@:table("TestSpodObject")
+class TestSpodObject extends sys.db.Object{
+    public var id: SUId;
+    public var name: SString<255>;
+    public var date: SDate;
+}
 
 class TestPostgres extends TestCase {
 
@@ -233,4 +242,33 @@ class TestPostgres extends TestCase {
             assertTrue(r.id != null);
         }
     }
+
+    public function testSPODManagerTest() {
+        sys.db.Manager.cnx  = con;
+
+        con.request('
+                CREATE TABLE TestSpodObject (
+                    id SERIAL NOT NULL,
+                    name character varying(255),
+                    date timestamp without time zone
+                    );
+                ');
+
+        var test_spod_object:TestSpodObject = new TestSpodObject();
+        test_spod_object.name = "test";
+        test_spod_object.date = Date.now();
+        test_spod_object.insert();
+
+        assertTrue(test_spod_object.id != null);
+
+        if(test_spod_object.id != null){
+            var test_spod_manager:Manager<TestSpodObject> = new Manager<TestSpodObject>(TestSpodObject);
+            var get_spod_object:TestSpodObject = test_spod_manager.get(test_spod_object.id);
+            assertTrue(get_spod_object != null);
+            assertTrue(get_spod_object.name == "test");
+        }
+
+    }
+
 }
+
