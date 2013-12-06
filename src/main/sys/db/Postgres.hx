@@ -312,18 +312,13 @@ class PostgresConnection implements sys.db.Connection {
 	 **/
 	function handleTag(tag:String){
 		var values = tag.split(' ');
-		var command = values.pop();
-		switch(command){
+		switch(values[0]){
 			case "INSERT" : {
-				var oid  = Std.parseInt(values.pop());
-				var rows = Std.parseInt(values.pop());
+			    if (values.length != 3) throw "INSERT command should include oid and row";
+				var oid  = Std.parseInt(values[1]);
+				var rows = Std.parseInt(values[2]);
 				if (rows == 1) this.last_insert_id = oid;
 			}
-			case "CREATE TABLE" : {
-			    null;
-			}
-
-
 		}
 	}
 }
