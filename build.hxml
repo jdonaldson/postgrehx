@@ -2,8 +2,8 @@
 -cp ./src/test/
 -cp ./src/main/
 -main TestAll
--php test
--cmd php ./test/index.php
+-php test/test_php
+-cmd php ./test/test_php/index.php
 
 --next
 
@@ -11,5 +11,5 @@
 -cp ./src/test/
 -cp ./src/main/
 -main TestAll
--x test
+-x test/test_neko
 
