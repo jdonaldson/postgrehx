@@ -188,7 +188,8 @@ class TestPostgres extends TestCase {
 			Address   : "Somewhere",
 			City      : "Someplace",
 			MaxInt32  : max_int_32,
-			MinInt32  : min_int_32
+			MinInt32  : min_int_32,
+			IsPerson  : true,
 		}
 
 		con.request('
@@ -199,7 +200,8 @@ class TestPostgres extends TestCase {
 					"Address"   varchar(255),
 					"City"      varchar(255),
 					"MaxInt32"  int,
-					"MinInt32"  int
+					"MinInt32"  int,
+					"IsPerson"  bool
 					); '
 				);
 
@@ -211,7 +213,8 @@ class TestPostgres extends TestCase {
 					${con.quote(person.Address)},
 					${con.quote(person.City)},
 				    ${person.MaxInt32},
-				    ${person.MinInt32}
+				    ${person.MinInt32},
+				    ${person.IsPerson}
 					)'
 				);
 

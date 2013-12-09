@@ -421,7 +421,7 @@ class PostgresResultSet implements ResultSet {
 			case DataType.oidINT8        : Std.parseInt(string);
 			case DataType.oidINT4        : Std.parseInt(string);
 			case DataType.oidINT2        : Std.parseInt(string);
-			case DataType.oidBOOL        : Std.parseInt(string);
+			case DataType.oidBOOL        : string=='t';
 			case DataType.oidJSON        : haxe.Json.parse(string);
 			case DataType.oidFLOAT4      : Std.parseFloat(string);
 			case DataType.oidFLOAT8      : Std.parseFloat(string);
