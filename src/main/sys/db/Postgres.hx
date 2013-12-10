@@ -262,7 +262,7 @@ class PostgresConnection implements sys.db.Connection {
 		if (v == null || Std.is(v,Int)){
 			s.add(v);
 		} else if (Std.is(v,Bool)){
-			s.add(if (cast v) 1 else 0);
+			s.add(if (cast v) "TRUE" else "FALSE");
 		} else {
 			s.add(quote(Std.string(v)));
 		}

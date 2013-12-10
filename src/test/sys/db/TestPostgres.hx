@@ -10,6 +10,7 @@ class TestSpodObject extends sys.db.Object{
     public var id: SUId;
     public var name: SString<255>;
     public var date: SDate;
+    public var is_active: SBool;
 }
 
 class TestPostgres extends TestCase {
@@ -288,13 +289,15 @@ class TestPostgres extends TestCase {
                 CREATE TABLE TestSpodObject (
                     id SERIAL NOT NULL,
                     name character varying(255),
-                    date timestamp without time zone
+                    date timestamp without time zone,
+                    is_active bool
                     );
                 ');
 
         var test_spod_object:TestSpodObject = new TestSpodObject();
         test_spod_object.name = "test";
         test_spod_object.date = Date.now();
+        test_spod_object.is_active = true;
         test_spod_object.insert();
 
         assertTrue(test_spod_object.id != null);
