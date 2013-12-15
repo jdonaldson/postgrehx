@@ -48,6 +48,10 @@ If you want to run the tests, execute the tools/create_db.sh bash script that
 contains the database, pass, and test user for the tests.  To get rid of it,
 run the tools/destroy_db.sh script.
 
+Postgrehx should work with most modern versions of PGSQL (version 8 or
+later). The tests are intended to run against  version 9.3 or later, as they
+test the latest json indexing methods.
+
 ## Acknowledgments
 
 Thanks to [theRemix](https://github.com/theremix) and
