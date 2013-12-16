@@ -360,7 +360,8 @@ class PostgresResultSet implements ResultSet {
 	}
 
 	function getByteResult(col_idx : Int) : Null<Bytes> {
-	    if (current_row == null && data_iterator.hasNext()) {
+	    if (current_row != null) return current_row[col_idx];
+	    else if (data_iterator.hasNext()) {
 	        current_row = data_iterator.next();
 	        return current_row[col_idx];
         } else return null;
