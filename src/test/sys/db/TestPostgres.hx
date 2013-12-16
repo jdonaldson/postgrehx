@@ -1,60 +1,18 @@
 package sys.db;
 import sys.db.Postgres;
-import sys.db.pgsql.Error;
+import sys.db.TestBase;
+import sys.db.Connection;
 import haxe.unit.TestCase;
-import sys.db.Types;
-import sys.db.Sqlite;
-
-@:table("TestSpodObject")
-class TestSpodObject extends sys.db.Object{
-    public var id: SUId;
-    public var name: SString<255>;
-    public var date: SDate;
-    public var is_active: SBool;
-}
 
 class TestPostgres extends TestCase {
 
-    inline static var user   = "test_haxe_user";
-    inline static var pass   = "test_haxe_pass";
-    inline static var db     = "test_haxe_db";
-    inline static var schema = "test_haxe_schema";
 
-	var con : sys.db.Connection;
+	var con : Connection;
 
-	/**
-	  Nuke the default schema every time the test is run
-	 **/
-    public static function __init__(){
-        // resetting the db on travis causes errors, and isn't necessary
-        if (Sys.getEnv("TRAVIS") != "true") {
-            var initcon = Postgres.connect({
-                host     : "localhost",
-                user     : user,
-                database : db,
-                pass     : pass
-            });
-            initcon.request('drop schema if exists $schema cascade');
-            initcon.request('create schema $schema');
-            initcon.close;
-        }
+	public function new() {
+	    super();
+	    con = TestBase.setup();
     }
-
-	override public function setup(){
-	    var set_user = user;
-	    var set_pass = pass;
-
-	    if (Sys.getEnv("TRAVIS") == "true"){
-            set_user = "postgres";
-            set_pass = "";
-        }
-        con = Postgres.connect({
-            host	 : "localhost",
-            user	 : set_user,
-            database : db,
-            pass	 : set_pass
-        });
-	}
 
 	/**
 	  Am I even who I say I am?
@@ -244,6 +202,7 @@ class TestPostgres extends TestCase {
 		assertEquals(2, Reflect.fields(obj).length);
 		assertTrue(obj.table_schema != null);
 		assertTrue(obj.table_name != null);
+
 	}
 
 	/**
@@ -264,7 +223,6 @@ class TestPostgres extends TestCase {
       Test exhausting iterators in a multiple requests
      **/
     public function testMultipleRequests(){
-
         con.request('
                 CREATE TABLE multiplerequests (
                     id integer NOT NULL,
@@ -272,9 +230,7 @@ class TestPostgres extends TestCase {
                     date timestamp without time zone
                     );
                 ');
-
         con.request('INSERT INTO multiplerequests VALUES (1, ${con.quote("foo")}, ${con.quote(Std.string(Date.now()))});');
-
         for(i in 0...3){
             var res = con.request('
                     SELECT * FROM multiplerequests
@@ -285,34 +241,6 @@ class TestPostgres extends TestCase {
         }
     }
 
-    public function testSPODManagerTest() {
-        sys.db.Manager.cnx  = con;
-
-        con.request('
-                CREATE TABLE TestSpodObject (
-                    id SERIAL NOT NULL,
-                    name character varying(255),
-                    date timestamp without time zone,
-                    is_active bool
-                    );
-                ');
-
-        var test_spod_object:TestSpodObject = new TestSpodObject();
-        test_spod_object.name = "test";
-        test_spod_object.date = Date.now();
-        test_spod_object.is_active = true;
-        test_spod_object.insert();
-
-        assertTrue(test_spod_object.id != null);
-
-        if(test_spod_object.id != null){
-            var test_spod_manager:Manager<TestSpodObject> = new Manager<TestSpodObject>(TestSpodObject);
-            var get_spod_object:TestSpodObject = test_spod_manager.get(test_spod_object.id);
-            assertTrue(get_spod_object != null);
-            assertTrue(get_spod_object.name == "test");
-        }
-
-    }
 
 }
 
