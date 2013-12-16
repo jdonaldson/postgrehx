@@ -8,13 +8,13 @@ class TestSpodObject extends sys.db.Object{
     public var name: SString<255>;
     public var date: SDate;
     public var is_active: SBool;
-    
+
 }
 class TestSpodPostgres extends TestCase{
     static var con : Connection;
     public function new() {
         super();
-        con = TestBase.setup(); 
+        con = TestBase.setup();
     }
 
     public function testSPODManagerTest() {
@@ -34,6 +34,9 @@ class TestSpodPostgres extends TestCase{
         test_spod_object.insert();
         assertTrue(test_spod_object.id != null);
         var test_spod_manager:Manager<TestSpodObject> = new Manager<TestSpodObject>(TestSpodObject);
+        var count = test_spod_manager.count($name == test_spod_object.name);
+        assertEquals(count, 1);
+
         var get_spod_object:TestSpodObject = test_spod_manager.get(test_spod_object.id);
         assertTrue(get_spod_object != null);
         assertTrue(get_spod_object.name == "test");

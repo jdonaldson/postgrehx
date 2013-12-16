@@ -338,8 +338,7 @@ class PostgresResultSet implements ResultSet {
 
 	function get_length(){
 	    if (set_length == null){
-            cached_rows = [for(row in data_iterator) row];
-
+            cached_rows   = [for(row in data_iterator) row];
             set_length    = cached_rows.length + row_count;
             data_iterator = cached_rows.iterator();
         }
@@ -353,7 +352,6 @@ class PostgresResultSet implements ResultSet {
 	    if (data_iterator == null) data_iterator = [].iterator();
 
 		this.data_iterator      = data_iterator;
-
 		this.field_descriptions = field_descriptions;
 	}
 
@@ -361,18 +359,35 @@ class PostgresResultSet implements ResultSet {
 		return [for (f in field_descriptions) f.name];
 	}
 
-	public function getFloatResult(col_idx: Int){
-        var bytes = current_row[col_idx];
-		return Std.parseFloat(bytes.toString());
+	function getByteResult(col_idx : Int) : Null<Bytes> {
+	    if (current_row == null && data_iterator.hasNext()) {
+	        current_row = data_iterator.next();
+	        return current_row[col_idx];
+        } else return null;
+
+    }
+	public function getFloatResult(col_idx: Int) : Float{
+	    var bytes = getByteResult(col_idx);
+	    if (bytes != null)
+            return Std.parseFloat(bytes.toString());
+        else
+            return null;
 	}
 
-	public function	getIntResult(col_idx: Int){
-		var bytes = current_row[col_idx];
-		return cast Std.parseInt(bytes.toString());
+	public function	getIntResult(col_idx: Int) : Int{
+	    var bytes = getByteResult(col_idx);
+	    if (bytes != null)
+            return cast Std.parseInt(bytes.toString());
+        else
+            return null;
 	}
 
-	public function getResult(col_idx: Int){
-		return current_row[col_idx].toString();
+	public function getResult(col_idx: Int) : String {
+	    var bytes = getByteResult(col_idx);
+	    if (bytes != null)
+            return bytes.toString();
+        else
+            return null;
 	}
 
 	inline public function hasNext(){
