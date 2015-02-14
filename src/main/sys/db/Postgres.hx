@@ -336,7 +336,7 @@ class PostgresResultSet implements ResultSet {
 	public var length(get, null)  : Int;
 	public var nfields(get, null) : Int;
 
-	function get_length(){
+	function get_length():Int{
 	    if (set_length == null){
             cached_rows   = [for(row in data_iterator) row];
             set_length    = cached_rows.length + row_count;
