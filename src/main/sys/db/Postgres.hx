@@ -330,7 +330,7 @@ class PostgresResultSet implements ResultSet {
 	var cached_rows        : Array<Array<Bytes>>;
 
 	var row_count                  = 0;
-	var set_length  : Null<Int>    = null;
+	var set_length  : Int    = 0;
 	var current_row : Array<Bytes> = null;
 
 	public var length(get, null)  : Int;
